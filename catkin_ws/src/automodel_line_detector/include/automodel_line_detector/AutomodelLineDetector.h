@@ -40,16 +40,16 @@ namespace automodel {
 		private:
 			ros::NodeHandle	nodeHandle;
 			//Para Cannny
-			int lowThreshold;
-			int highThreshold;
-			int perBlindHorizon;
+			int canny_lowThreshold;
+			int canny_highThreshold;
+			int canny_perBlindHorizon;
 
 			//Para Hough
 			double rho;
 			double theta;
-			int int_rho;
-			int int_theta;
-			int threshold;
+			int hough_int_rho;
+			int hough_int_theta;
+			int hough_threshold;
 	};
 
 }

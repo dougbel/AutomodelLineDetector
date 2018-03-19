@@ -1,0 +1,6 @@
+canny_lowThreshold: 172
+canny_highThreshold: 179
+canny_perBlindHorizon: 46
+hough_int_rho: 1
+hough_int_theta: 1
+hough_threshold: 45
