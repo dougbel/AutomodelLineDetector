@@ -38,7 +38,12 @@ namespace automodel {
 
 
 		private:
+
+			void saveParameters();
+
 			ros::NodeHandle	nodeHandle;
+			string image_topic;
+
 			//Para Cannny
 			int canny_lowThreshold;
 			int canny_highThreshold;

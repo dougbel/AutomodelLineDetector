@@ -16,13 +16,13 @@ namespace automodel {
 	AutomodelLineDetector::AutomodelLineDetector(ros::NodeHandle& nodeHandle_) :
 			nodeHandle(nodeHandle_) {
 
+		  readDefaultParameters();
+
 		 // subsribe topic
-		  ros::Subscriber sub = nodeHandle.subscribe("/app/camera/rgb/image_raw", 1000,
+		  ros::Subscriber sub = nodeHandle.subscribe(image_topic, 1000,
 					&AutomodelLineDetector::detect, this);
 
-		  readDefaultParameters();
 		  createGUI();
-
 
 
 		  // publish
@@ -96,10 +96,7 @@ namespace automodel {
 		image_roi= cv::Mat::zeros(image_roi.size(), image_roi.type());
 
 
-		int low_threshold = 50;
-		int high_threshold = 150;
-		int kernel_size = 3;
-		cv::Canny(mask_yw_image,mask_yw_image,low_threshold,high_threshold);
+		cv::Canny(mask_yw_image,mask_yw_image,canny_lowThreshold,canny_highThreshold);
 
 
         double srn=0;
@@ -145,7 +142,10 @@ namespace automodel {
 		cv::imshow(OUT2_NAMED_WINDOW,imageColor);
 		cv::imshow(OUT_NAMED_WINDOW,mask_yw_image);
 
-		cv::waitKey(15);
+		if(cv::waitKey(15)=='s')
+		{
+			saveParameters();
+		}
 	}
 
 	void AutomodelLineDetector::createGUI() {
@@ -164,6 +164,8 @@ namespace automodel {
 	}
 
 	void AutomodelLineDetector::readDefaultParameters() {
+
+		image_topic = "/app/camera/rgb/image_raw";
 		canny_lowThreshold = 172;
 		canny_highThreshold = 179;
 		canny_perBlindHorizon = 46;
@@ -172,6 +174,10 @@ namespace automodel {
 		hough_int_theta =1;
 		hough_threshold = 45;
 
+		if (!nodeHandle.getParam("image_topic", image_topic)) {
+			ROS_ERROR("Could not find image_topic parameter!");
+			//ros::requestShutdown();
+		}
 		if (!nodeHandle.getParam("lowThreshold", canny_lowThreshold)) {
 			ROS_ERROR("Could not find lowThreshold parameter!");
 			//ros::requestShutdown();
@@ -206,7 +212,22 @@ namespace automodel {
 
 	}
 
+	void AutomodelLineDetector::saveParameters() {
 
+
+		FileStorage fs("./config.yaml", FileStorage::WRITE);
+
+		fs << "canny_lowThreshold" << canny_lowThreshold;
+		fs << "canny_highThreshold" << canny_highThreshold;
+		fs << "canny_perBlindHorizon" << canny_perBlindHorizon;
+		fs << "hough_int_rho" << hough_int_rho;
+		fs << "hough_int_theta" << hough_int_theta;
+		fs << "hough_threshold" << hough_threshold;
+
+		ROS_INFO_STREAM("File Saved");
+
+		fs.release();
+	}
 
 } /* namespace automodel */
 
