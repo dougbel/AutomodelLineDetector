@@ -9,7 +9,7 @@
 #define SRC_AUTOMODELLINEDETECTOR_H_
 
 #include "cv_bridge/cv_bridge.h"
-#include "sensor_msgs/Image.h"
+#include "std_msgs/Float32MultiArray.h"
 #include <opencv2/opencv.hpp>
 #include "opencv2/imgproc.hpp"
 #include <image_transport/image_transport.h>
@@ -31,8 +31,10 @@ namespace automodel {
 			virtual ~AutomodelLineDetector();
 
 			void detect(const sensor_msgs::ImageConstPtr& );
+			void publishLines();
 
 			void createGUI();
+			void visualize(const sensor_msgs::ImageConstPtr& msg);
 			void readDefaultParameters();
 
 
@@ -55,6 +57,19 @@ namespace automodel {
 			int hough_int_rho;
 			int hough_int_theta;
 			int hough_threshold;
+
+			Mat mask_yw_image;
+			Mat imageColor;
+
+			//to use in Hough tranform
+			vector<Vec2f> linesRight;
+			vector<Vec2f> linesLeft;
+
+			ros::Publisher pubLeft;
+			ros::Publisher pubRight;
+
+
+			bool debug;
 	};
 
 }
