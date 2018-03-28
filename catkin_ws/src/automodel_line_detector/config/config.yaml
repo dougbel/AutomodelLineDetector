@@ -1,4 +1,4 @@
-/automodel_line_detector/debug: false
+/automodel_line_detector/debug: true
 /automodel_line_detector/image_topic: /app/camera/rgb/image_raw
 /automodel_line_detector/canny_lowThreshold: 172
 /automodel_line_detector/canny_highThreshold: 179

@@ -29,7 +29,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
 
 
-  <node name="automodel_line_detector" pkg="automodel_line_detector" type="automodel_line_detector_node" output="screen">
+  <node name="automodel_line_detector" pkg="automodel_line_detector" type="automodel_line_detector_node" output="screen" cwd="node" >
   		<rosparam command="load" file="$(find automodel_line_detector)/config/config.yaml" />
 
   </node>

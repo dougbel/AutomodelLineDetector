@@ -13,7 +13,8 @@
 #include <opencv2/opencv.hpp>
 #include "opencv2/imgproc.hpp"
 #include <image_transport/image_transport.h>
-#include <iostream>
+#include <ros/package.h>
+
 
 using namespace std;
 using namespace cv;

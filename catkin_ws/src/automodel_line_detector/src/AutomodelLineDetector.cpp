@@ -152,7 +152,7 @@ namespace automodel {
 
 		if (!nodeHandle.getParam("/automodel_line_detector/image_topic", image_topic)) {
 			ROS_ERROR("Could not find image_topic parameter!");
-			//ros::requestShutdown();
+			// ros::requestShutdown();
 		}
 		if (!nodeHandle.getParam("/automodel_line_detector/canny_lowThreshold", canny_lowThreshold)) {
 			ROS_ERROR("Could not find canny_lowThreshold parameter!");
@@ -181,7 +181,7 @@ namespace automodel {
 
 		if (!nodeHandle.getParam("/automodel_line_detector/debug", debug)) {
 			ROS_ERROR("Could not find debug parameter!");
-			//ros::requestShutdown();
+		// 	//ros::requestShutdown();
 		}
 
 		ROS_INFO_STREAM("Image topic: "<< image_topic);
@@ -242,22 +242,24 @@ namespace automodel {
 
 	void AutomodelLineDetector::saveParameters() {
 
+		std::string file = ros::package::getPath("automodel_line_detector")+"/config/config_new.yaml";
 
-		FileStorage fs("./config.yaml", FileStorage::WRITE);
+		FileStorage fs( file, FileStorage::WRITE);
 
-		fs << "/automodel_line_detector/debug" << debug;
-		fs << "/automodel_line_detector/image_topic" << image_topic;
-		fs << "/automodel_line_detector/canny_lowThreshold" << canny_lowThreshold;
-		fs << "/automodel_line_detector/canny_highThreshold" << canny_highThreshold;
-		fs << "/automodel_line_detector/canny_perBlindHorizon" << canny_perBlindHorizon;
-		fs << "/automodel_line_detector/hough_int_rho" << hough_int_rho;
-		fs << "/automodel_line_detector/hough_int_theta" << hough_int_theta;
-		fs << "/automodel_line_detector/hough_threshold" << hough_threshold;
+		fs << "debug" << debug;
+		fs << "image_topic" << image_topic;
+		fs << "canny_lowThreshold" << canny_lowThreshold;
+		fs << "canny_highThreshold" << canny_highThreshold;
+		fs << "canny_perBlindHorizon" << canny_perBlindHorizon;
+		fs << "hough_int_rho" << hough_int_rho;
+		fs << "hough_int_theta" << hough_int_theta;
+		fs << "hough_threshold" << hough_threshold;
 
-		ROS_INFO_STREAM("File Saved");
+		ROS_WARN_STREAM("File Saved on "<< file);
+		ROS_WARN_STREAM("EDIT AND REPLACE to APPLY!");
 
-		fs.release();
+
+
 	}
 
 } /* namespace automodel */
-
