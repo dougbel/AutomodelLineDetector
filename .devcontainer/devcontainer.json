@@ -1,0 +1,40 @@
+{
+  "name": "ROS Dev",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": ".."
+  },
+  "runArgs": [
+    "--net=host",
+    "--env=DISPLAY",
+    "--env=QT_X11_NO_MITSHM=1",
+    "--volume=${localEnv:HOME}/.Xauthority:/home/docker/.Xauthority:rw",
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw",
+    "--device=/dev/video0:/dev/video0"
+  ],
+  "remoteUser": "docker",
+  "workspaceFolder": "/home/docker/catkin_ws",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+            "icon": "terminal-bash"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "C_Cpp.default.configurationProvider": "ms-iot.vscode-ros"
+      },
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-vscode.cpptools",
+        "twxs.cmake"
+      ]
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/home/docker/catkin_ws,type=bind"
+  ],
+  "postCreateCommand": "/bin/bash -c '. /opt/ros/noetic/setup.bash && cd /home/docker/catkin_ws && catkin build'"
+}

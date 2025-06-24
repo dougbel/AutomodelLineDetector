@@ -1,7 +1,7 @@
 /automodel_line_detector/debug: true
-/automodel_line_detector/image_topic: /app/camera/rgb/image_raw
-/automodel_line_detector/canny_lowThreshold: 172
-/automodel_line_detector/canny_highThreshold: 179
+/automodel_line_detector/image_topic: /video_publisher/frames
+/automodel_line_detector/canny_lowThreshold: 165
+/automodel_line_detector/canny_highThreshold: 222
 /automodel_line_detector/canny_perBlindHorizon: 46
 /automodel_line_detector/hough_int_rho: 1
 /automodel_line_detector/hough_int_theta: 1

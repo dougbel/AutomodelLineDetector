@@ -5,20 +5,19 @@
 #include <opencv2/opencv.hpp>
 #include <image_transport/image_transport.h>
 
-#include "automodel_line_detector/AutomodelLineDetector.h"
+#include "automodel_line_detector.hpp"
 
 using namespace automodel;
 
 int main(int argc, char **argv)
 {
-  //initialize node
+  // initialize node
   ros::init(argc, argv, "automodel_line_detector");
 
   // node handler
   ros::NodeHandle n;
 
   AutomodelLineDetector lineDetector(n);
-
 
   return 0;
 }

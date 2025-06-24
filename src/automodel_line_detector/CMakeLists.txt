@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(automodel_line_detector)
 
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -108,7 +111,7 @@ find_package( OpenCV REQUIRED )
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES automodel_line_detector
    CATKIN_DEPENDS roscpp std_msgs message_runtime cv_bridge sensor_msgs
 #  DEPENDS system_lib
@@ -141,7 +144,7 @@ include_directories(
 add_executable(
 	${PROJECT_NAME}_node 
 	src/automodel_line_detector_node.cpp
-	src/AutomodelLineDetector.cpp
+	src/automodel_line_detector.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
