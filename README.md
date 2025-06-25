@@ -1,5 +1,7 @@
 # Automodel line detector
 
+<img src="doc/view.png" width="800">
+
 ## Overview
 The AutoModelCar challenge in the Robotics Mexican Tournament (TMR), accelerates innovation in autonomous systems by advancing perception, planning, and control algorithms for self-driving vehicles. Participants develop solutions using 1:10 scale robotic cars equipped with sensor and actuator configurations mirroring real-world automotive systems.
 
@@ -131,19 +133,5 @@ the *debug* param is by default adjusted in true. This will showw you three wind
     </tr>
     <tr>
         <td><img src="./doc/win3.jpg" alt="Example 3" height="250"/></td>
-    </tr>
-</table>
-
-
-Other output examples:
-
-<table>
-    <tr>
-        <td><img src="./doc/ejem1.jpg" alt="Example 1" width="250"/></td>
-        <td><img src="./doc/ejem2.jpg" alt="Example 2" width="250"/></td>
-    </tr>
-    <tr>
-        <td><img src="./doc/ejem3.jpg" alt="Example 3" width="250"/></td>
-        <td><img src="./doc/ejem4.jpg" alt="Example 4" width="250"/></td>
     </tr>
 </table>
