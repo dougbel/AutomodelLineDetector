@@ -1,0 +1,7 @@
+.catkin_tools/CATKIN_IGNORE
+.catkin_tools/README
+.catkin_tools/VERSION
+.catkin_tools/profiles/profiles.yaml
+.catkin_tools/profiles/default/config.yaml
+.catkin_tools/profiles/default/devel_collisions.txt
+data/CarroAutonomo.avi

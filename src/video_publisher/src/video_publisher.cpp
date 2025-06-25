@@ -11,6 +11,7 @@ VideoPublisher::VideoPublisher(ros::NodeHandle &nodeHandle) : _nh(nodeHandle)
 {
     _pub = _nh.advertise<sensor_msgs::Image>("frames", 10);
     _nh.param<std::string>("video_path", _video_file, "/home/docker/catkin_ws/CarroAutonomo.avi");
+    _nh.param<bool>("loop", _loop, true);
 };
 
 void VideoPublisher::publish_frames()
@@ -33,7 +34,17 @@ void VideoPublisher::publish_frames()
 
         if (frame.empty())
         {
-            ROS_INFO("End of video stream");
+            if (_loop)
+            {
+                cap.set(cv::CAP_PROP_POS_FRAMES, 0);
+                ROS_INFO("Looping video stream");
+                cap >> frame;
+            }
+            else
+            {
+                ROS_INFO("End of video stream");
+                break;
+            }
         }
 
         try

@@ -15,62 +15,58 @@
 #include <image_transport/image_transport.h>
 #include <ros/package.h>
 
-
 using namespace std;
 using namespace cv;
 
-namespace automodel {
-
+namespace automodel::line_detector
+{
 
 	const string IN_NAMED_WINDOW = "Input";
 	const string OUT_NAMED_WINDOW = "Output";
 	const string OUT2_NAMED_WINDOW = "Output prev";
 
-	class AutomodelLineDetector {
-		public:
-			AutomodelLineDetector(ros::NodeHandle& nodeHandle);
-			virtual ~AutomodelLineDetector();
+	class AutomodelLineDetector
+	{
+	public:
+		AutomodelLineDetector(ros::NodeHandle &nodeHandle);
+		virtual ~AutomodelLineDetector();
 
-			void detect(const sensor_msgs::ImageConstPtr& );
-			void publishLines();
+		void detect(const sensor_msgs::ImageConstPtr &);
+		void publishLines();
 
-			void createGUI();
-			void visualize(const sensor_msgs::ImageConstPtr& msg);
-			void readDefaultParameters();
+		void createGUI();
+		void visualize(const sensor_msgs::ImageConstPtr &msg);
+		void readDefaultParameters();
 
+	private:
+		void saveParameters();
 
+		ros::NodeHandle nodeHandle;
+		string image_topic;
 
-		private:
+		// Para Cannny
+		int canny_lowThreshold;
+		int canny_highThreshold;
+		int canny_perBlindHorizon;
 
-			void saveParameters();
+		// Para Hough
+		double rho;
+		double theta;
+		int hough_int_rho;
+		int hough_int_theta;
+		int hough_threshold;
 
-			ros::NodeHandle	nodeHandle;
-			string image_topic;
+		Mat mask_yw_image;
+		Mat imageColor;
 
-			//Para Cannny
-			int canny_lowThreshold;
-			int canny_highThreshold;
-			int canny_perBlindHorizon;
+		// to use in Hough tranform
+		vector<Vec2f> linesRight;
+		vector<Vec2f> linesLeft;
 
-			//Para Hough
-			double rho;
-			double theta;
-			int hough_int_rho;
-			int hough_int_theta;
-			int hough_threshold;
+		ros::Publisher pubLeft;
+		ros::Publisher pubRight;
 
-			Mat mask_yw_image;
-			Mat imageColor;
-
-			//to use in Hough tranform
-			vector<Vec2f> linesRight;
-			vector<Vec2f> linesLeft;
-
-			ros::Publisher pubLeft;
-			ros::Publisher pubRight;
-
-
-			bool debug;
+		bool debug;
 	};
 
 }

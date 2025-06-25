@@ -11,6 +11,7 @@ namespace video_publisher
         ros::NodeHandle _nh;
         ros::Publisher _pub;
         string _video_file;
+        bool _loop;
 
     public:
         VideoPublisher(ros::NodeHandle &nodeHandle);

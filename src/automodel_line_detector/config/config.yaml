@@ -1,8 +1,8 @@
-/automodel_line_detector/debug: true
-/automodel_line_detector/image_topic: /video_publisher/frames
-/automodel_line_detector/canny_lowThreshold: 165
-/automodel_line_detector/canny_highThreshold: 222
-/automodel_line_detector/canny_perBlindHorizon: 46
-/automodel_line_detector/hough_int_rho: 1
-/automodel_line_detector/hough_int_theta: 1
-/automodel_line_detector/hough_threshold: 45
+/automodel/line_detector/debug: true
+/automodel/line_detector/image_topic: /video_publisher/frames
+/automodel/line_detector/canny_lowThreshold: 165
+/automodel/line_detector/canny_highThreshold: 222
+/automodel/line_detector/canny_perBlindHorizon: 46
+/automodel/line_detector/hough_int_rho: 1
+/automodel/line_detector/hough_int_theta: 1
+/automodel/line_detector/hough_threshold: 45

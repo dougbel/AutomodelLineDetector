@@ -9,7 +9,7 @@
 
 using namespace cv;
 
-namespace automodel
+namespace automodel::line_detector
 {
 
 	cv::Mat detectedEdges;
@@ -26,8 +26,8 @@ namespace automodel
 		if (debug)
 			createGUI();
 
-		pubLeft = nodeHandle.advertise<std_msgs::Float32MultiArray>("leftLine", 1);
-		pubRight = nodeHandle.advertise<std_msgs::Float32MultiArray>("rightLine", 1);
+		pubLeft = nodeHandle.advertise<std_msgs::Float32MultiArray>("left", 1);
+		pubRight = nodeHandle.advertise<std_msgs::Float32MultiArray>("right", 1);
 
 		ros::spin();
 	}
@@ -44,15 +44,6 @@ namespace automodel
 	{
 
 		cv::Mat image = cv_bridge::toCvShare(msg, "mono8")->image;
-
-		///////////choosing pixels////
-
-		// color
-		// lower_yellow = np.array([20, 100, 100], dtype = “uint8”)
-		// upper_yellow = np.array([30, 255, 255], dtype=”uint8")
-		// mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
-		// mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
-		// mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
 
 		// gray scale
 		Mat mask_white;
@@ -144,43 +135,43 @@ namespace automodel
 
 		debug = false;
 
-		if (!nodeHandle.getParam("/automodel_line_detector/image_topic", image_topic))
+		if (!nodeHandle.getParam("/automodel/line_detector/image_topic", image_topic))
 		{
 			ROS_ERROR("Could not find image_topic parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/canny_lowThreshold", canny_lowThreshold))
+		if (!nodeHandle.getParam("/automodel/line_detector/canny_lowThreshold", canny_lowThreshold))
 		{
 			ROS_ERROR("Could not find canny_lowThreshold parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/canny_highThreshold", canny_highThreshold))
+		if (!nodeHandle.getParam("/automodel/line_detector/canny_highThreshold", canny_highThreshold))
 		{
 			ROS_ERROR("Could not find canny_highThreshold parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/canny_perBlindHorizon", canny_perBlindHorizon))
+		if (!nodeHandle.getParam("/automodel/line_detector/canny_perBlindHorizon", canny_perBlindHorizon))
 		{
 			ROS_ERROR("Could not find canny_perBlindHorizon parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/hough_int_rho", hough_int_rho))
+		if (!nodeHandle.getParam("/automodel/line_detector/hough_int_rho", hough_int_rho))
 		{
 			ROS_ERROR("Could not find hough_int_rho parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/hough_int_theta", hough_int_theta))
+		if (!nodeHandle.getParam("/automodel/line_detector/hough_int_theta", hough_int_theta))
 		{
 			ROS_ERROR("Could not find hough_int_theta parameter!");
 			// ros::requestShutdown();
 		}
-		if (!nodeHandle.getParam("/automodel_line_detector/hough_threshold", hough_threshold))
+		if (!nodeHandle.getParam("/automodel/line_detector/hough_threshold", hough_threshold))
 		{
 			ROS_ERROR("Could not find hough_threshold parameter!");
 			// ros::requestShutdown();
 		}
 
-		if (!nodeHandle.getParam("/automodel_line_detector/debug", debug))
+		if (!nodeHandle.getParam("/automodel/line_detector/debug", debug))
 		{
 			ROS_ERROR("Could not find debug parameter!");
 			// 	//ros::requestShutdown();

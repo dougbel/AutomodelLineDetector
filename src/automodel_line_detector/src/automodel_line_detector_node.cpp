@@ -7,15 +7,15 @@
 
 #include "automodel_line_detector.hpp"
 
-using namespace automodel;
+using namespace automodel::line_detector;
 
 int main(int argc, char **argv)
 {
   // initialize node
-  ros::init(argc, argv, "automodel_line_detector");
+  ros::init(argc, argv, "automodel/line_detector");
 
   // node handler
-  ros::NodeHandle n;
+  ros::NodeHandle n("~");
 
   AutomodelLineDetector lineDetector(n);
 
