@@ -15,5 +15,7 @@ int main(int argc, char **argv)
 
   publisher.publish_frames();
 
+  ros::spin();
+
   return 0;
 }
