@@ -41,7 +41,7 @@ namespace automodel::line_detector
 	private:
 		void saveParameters();
 
-		ros::NodeHandle nodeHandle;
+		ros::NodeHandle _nh;
 		string image_topic;
 
 		// Para Cannny
