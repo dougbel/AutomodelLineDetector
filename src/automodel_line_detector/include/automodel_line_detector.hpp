@@ -43,6 +43,7 @@ namespace automodel::line_detector
 
 		ros::NodeHandle _nh;
 		string image_topic;
+		image_transport::Subscriber sub;
 
 		// Para Cannny
 		int canny_lowThreshold;

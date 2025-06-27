@@ -19,18 +19,16 @@ namespace automodel::line_detector
 
 		readDefaultParameters();
 
-		// subsribe topic
-		// ros::Subscriber sub = _nh.subscribe(image_topic, 1000,&AutomodelLineDetector::detect, this);
-		image_transport::ImageTransport it(_nh);
-		image_transport::Subscriber sub = it.subscribe(image_topic, 1, &AutomodelLineDetector::detect, this);
-
 		if (debug)
 			createGUI();
 
+		// subsribe topic
+		// ros::Subscriber sub = _nh.subscribe(image_topic, 1000,&AutomodelLineDetector::detect, this);
+		image_transport::ImageTransport it(_nh);
+		sub = it.subscribe(image_topic, 1, &AutomodelLineDetector::detect, this);
+
 		pubLeft = _nh.advertise<std_msgs::Float32MultiArray>("left", 1);
 		pubRight = _nh.advertise<std_msgs::Float32MultiArray>("right", 1);
-
-		ros::spin();
 	}
 
 	AutomodelLineDetector::~AutomodelLineDetector()

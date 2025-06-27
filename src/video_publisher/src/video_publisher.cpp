@@ -10,10 +10,14 @@ using namespace video_publisher;
 
 VideoPublisher::VideoPublisher(ros::NodeHandle &nodeHandle) : _nh(nodeHandle)
 {
-    image_transport::ImageTransport it(_nh);
 
     _nh.param<std::string>("video_path", _video_file, "/home/docker/catkin_ws/CarroAutonomo.avi");
     _nh.param<bool>("loop", _loop, true);
+
+    // this is not a best practice http://wiki.ros.org/image_transport
+    //  _pub = _nh.advertise<sensor_msgs::Image>("frames", 10);
+
+    image_transport::ImageTransport it(_nh);
 
     _pub = it.advertise("frames", 1);
 

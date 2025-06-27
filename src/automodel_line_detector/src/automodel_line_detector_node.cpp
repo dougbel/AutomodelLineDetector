@@ -19,5 +19,6 @@ int main(int argc, char **argv)
 
   AutomodelLineDetector lineDetector(n);
 
+  ros::spin();
   return 0;
 }

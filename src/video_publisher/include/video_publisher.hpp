@@ -11,7 +11,9 @@ namespace video_publisher
     {
     private:
         ros::NodeHandle _nh;
-        // ros::Publisher _pub;
+
+        // this is not a best practice http://wiki.ros.org/image_transport
+        //  ros::Publisher _pub;
         image_transport::Publisher _pub;
 
         string _video_file;
