@@ -12,233 +12,192 @@ using namespace cv;
 namespace automodel::line_detector
 {
 
-	cv::Mat detectedEdges;
-
 	AutomodelLineDetector::AutomodelLineDetector(ros::NodeHandle &nodeHandle) : _nh(nodeHandle)
 	{
+		read_parameters();
 
-		readDefaultParameters();
-
-		if (debug)
-			createGUI();
-
-		// subsribe topic
-		// ros::Subscriber sub = _nh.subscribe(image_topic, 1000,&AutomodelLineDetector::detect, this);
 		image_transport::ImageTransport it(_nh);
 		sub = it.subscribe(image_topic, 1, &AutomodelLineDetector::detect, this);
 
-		pubLeft = _nh.advertise<std_msgs::Float32MultiArray>("left", 1);
-		pubRight = _nh.advertise<std_msgs::Float32MultiArray>("right", 1);
+		_pub_line_left = _nh.advertise<std_msgs::Float32MultiArray>("left", 1);
+		_pub_line_right = _nh.advertise<std_msgs::Float32MultiArray>("right", 1);
+
+		_pub_img_lines = it.advertise("img_lines", 1);
+		_pub_img_edges = it.advertise("img_edges", 1);
+
+		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig>::CallbackType f;
+
+		f = boost::bind(&AutomodelLineDetector::set_parameters, this, _1, _2);
+		server.setCallback(f);
+	}
+
+	void AutomodelLineDetector::set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level)
+	{
+		// Update your internal parameters
+		canny_perBlindHorizon = config.canny_perBlindHorizon;
+		canny_lowThreshold = config.canny_lowThreshold;
+		canny_highThreshold = config.canny_highThreshold;
+
+		hough_int_rho = config.hough_int_rho;
+		hough_int_theta = config.hough_int_theta;
+		hough_threshold = config.hough_threshold;
+
+		// createTrackbar("Threshold low", IN_NAMED_WINDOW, &canny_lowThreshold, 255);
+		// createTrackbar("Threshold high", IN_NAMED_WINDOW, &canny_highThreshold, 255);
+		// createTrackbar("Perc horizon", IN_NAMED_WINDOW, &canny_perBlindHorizon, 100);
+
+		// createTrackbar("Hough ro", IN_NAMED_WINDOW, &hough_int_rho, 50);
+		// createTrackbar("Hough theta", IN_NAMED_WINDOW, &hough_int_theta, 360);
+		// createTrackbar("Hough threshold", IN_NAMED_WINDOW, &hough_threshold, 300);
 	}
 
 	AutomodelLineDetector::~AutomodelLineDetector()
 	{
-		cv::destroyWindow(IN_NAMED_WINDOW);
-		cv::destroyWindow(OUT_NAMED_WINDOW);
 		ROS_INFO_STREAM("Destroying Automodel Line Detector");
 	}
 
 	void AutomodelLineDetector::detect(const sensor_msgs::ImageConstPtr &msg)
 	{
+		auto cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+		cv::Mat img_rgb = cv_ptr->image;
+		cv::Mat img_mono;
+		cv::cvtColor(img_rgb, img_mono, cv::COLOR_BGR2GRAY);
 
-		cv::Mat image = cv_bridge::toCvShare(msg, "mono8")->image;
-
-		// gray scale
-		Mat mask_white;
-		inRange(image, canny_lowThreshold, canny_highThreshold, mask_white);
-		bitwise_and(image, mask_white, mask_yw_image);
-
-		// erasing the horizon
-		Rect region_of_interest = Rect(0, 0, image.cols, .01 * canny_perBlindHorizon * image.rows);
-		Mat image_roi = mask_yw_image(region_of_interest);
-		image_roi = cv::Mat::zeros(image_roi.size(), image_roi.type());
-
-		cv::Canny(mask_yw_image, mask_yw_image, canny_lowThreshold, canny_highThreshold);
-
-		rho = hough_int_rho;
-		theta = hough_int_theta * 3.1416 / 180;
-
-		HoughLines(mask_yw_image, linesLeft, rho, theta, hough_threshold, 0, 0, 0, 1.0472);		 // max 60 grad
-		HoughLines(mask_yw_image, linesRight, rho, theta, hough_threshold, 0, 0, 2.0944, CV_PI); // min 120 grad
-
-		if (debug)
-			visualize(msg);
+		cv::Mat edges = preprocess_image(img_mono);
+		detect_lines(edges);
 
 		publishLines();
+		publish_img_lines(img_rgb);
+		publish_img_edges(edges);
+	}
+
+	cv::Mat AutomodelLineDetector::preprocess_image(const cv::Mat &img_mono)
+	{
+		cv::Mat mask_white, masked_image;
+		inRange(img_mono, canny_lowThreshold, canny_highThreshold, mask_white);
+		bitwise_and(img_mono, mask_white, masked_image);
+
+		int horizon_y = static_cast<int>(0.01 * canny_perBlindHorizon * img_mono.rows);
+		masked_image(Rect(0, 0, img_mono.cols, horizon_y)) = Scalar(0);
+
+		cv::Mat edges;
+		cv::Canny(masked_image, edges, canny_lowThreshold, canny_highThreshold);
+
+		return edges;
+	}
+
+	void AutomodelLineDetector::detect_lines(const cv::Mat &edges)
+	{
+		rho = hough_int_rho;
+		theta = hough_int_theta * CV_PI / 180;
+
+		std::vector<Vec2f> all_lines;
+		HoughLines(edges, all_lines, rho, theta, hough_threshold);
+
+		_linesLeft.clear();
+		_linesRight.clear();
+		for (const auto &line : all_lines)
+		{
+			if (line[1] >= 0 && line[1] <= (CV_PI / 3))
+			{ // 0 to 60 degrees
+				_linesLeft.push_back(line);
+				break;
+			}
+		}
+		for (const auto &line : all_lines)
+		{
+			if (line[1] >= (2 * CV_PI / 3) && line[1] <= CV_PI)
+			{ // 120 to 180 degrees
+				_linesRight.push_back(line);
+				break;
+			}
+		}
 	}
 
 	void AutomodelLineDetector::publishLines()
 	{
-
-		if (linesLeft.size() > 0)
+		auto publish_line = [](ros::Publisher &pub, const std::vector<Vec2f> &lines, const std::string &label)
 		{
-			float rhot = linesLeft[0][0];
-			float thetat = linesLeft[0][1];
-			std_msgs::Float32MultiArray left;
+			if (!lines.empty())
+			{
+				float rho = lines[0][0], theta = lines[0][1];
+				std_msgs::Float32MultiArray msg;
+				msg.layout.dim.emplace_back();
+				msg.layout.dim[0].size = 3;
+				msg.layout.dim[0].stride = 1;
+				msg.layout.dim[0].label = label;
+				msg.data = {cos(theta), sin(theta), rho};
+				pub.publish(msg);
+			}
+		};
 
-			left.layout.dim.push_back(std_msgs::MultiArrayDimension());
-			left.layout.dim[0].size = 3;
-			left.layout.dim[0].stride = 1;
-			left.layout.dim[0].label = "left";
-			left.data.push_back(cos(thetat));
-			left.data.push_back(sin(thetat));
-			left.data.push_back(rhot);
-
-			pubLeft.publish(left);
-		}
-
-		if (linesRight.size() > 0)
-		{
-			float rhot = linesRight[0][0];
-			float thetat = linesRight[0][1];
-			std_msgs::Float32MultiArray right;
-
-			right.layout.dim.push_back(std_msgs::MultiArrayDimension());
-			right.layout.dim[0].size = 3;
-			right.layout.dim[0].stride = 1;
-			right.layout.dim[0].label = "right";
-			right.data.push_back(cos(thetat));
-			right.data.push_back(sin(thetat));
-			right.data.push_back(rhot);
-
-			pubRight.publish(right);
-		}
+		publish_line(_pub_line_left, _linesLeft, "left");
+		publish_line(_pub_line_right, _linesRight, "right");
 	}
 
-	void AutomodelLineDetector::createGUI()
+	void AutomodelLineDetector::publish_img_lines(Mat &image)
 	{
-		cv::namedWindow(IN_NAMED_WINDOW);
-		cv::namedWindow(OUT_NAMED_WINDOW);
+		if (_pub_img_lines.getNumSubscribers() == 0)
+			return;
 
-		createTrackbar("Threshold low", IN_NAMED_WINDOW, &canny_lowThreshold, 255);
-		createTrackbar("Threshold high", IN_NAMED_WINDOW, &canny_highThreshold, 255);
-		createTrackbar("Perc horizon", IN_NAMED_WINDOW, &canny_perBlindHorizon, 100);
+		imageColor = image.clone();
+		auto draw_line = [&](const std::vector<Vec2f> &lines, Scalar color, const std::string &label, Point text_pos)
+		{
+			if (!lines.empty())
+			{
+				float rho = lines[0][0], theta = lines[0][1];
+				double a = cos(theta), b = sin(theta);
+				double x0 = a * rho, y0 = b * rho;
+				Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
+				Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
+				line(imageColor, pt1, pt2, color, 3, LINE_AA);
+				putText(imageColor, label + ": rho " + to_string(rho) + " angle: " + to_string(theta), text_pos,
+						FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, LINE_AA);
+			}
+		};
+		draw_line(_linesRight, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
+		draw_line(_linesLeft, Scalar(0, 255, 0), "LEFT", Point(30, 80));
 
-		createTrackbar("Hough ro", IN_NAMED_WINDOW, &hough_int_rho, 50);
-		createTrackbar("Hough theta", IN_NAMED_WINDOW, &hough_int_theta, 360);
-		createTrackbar("Hough threshold", IN_NAMED_WINDOW, &hough_threshold, 300);
+		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imageColor).toImageMsg();
+		imgMsg->header.stamp = ros::Time::now();
+		imgMsg->header.frame_id = "img_lines";
+		_pub_img_lines.publish(imgMsg);
 	}
 
-	void AutomodelLineDetector::readDefaultParameters()
+	void AutomodelLineDetector::publish_img_edges(Mat &image)
 	{
+		if (_pub_img_edges.getNumSubscribers() == 0)
+			return;
 
-		image_topic = "/app/camera/rgb/image_raw";
-		canny_lowThreshold = 172;
-		canny_highThreshold = 179;
-		canny_perBlindHorizon = 46;
+		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
+		imgMsg->header.stamp = ros::Time::now();
+		imgMsg->header.frame_id = "img_edges";
+		_pub_img_edges.publish(imgMsg);
+	}
 
-		hough_int_rho = 1;
-		hough_int_theta = 1;
-		hough_threshold = 45;
-
-		debug = false;
-
-		if (!_nh.getParam("/automodel/line_detector/image_topic", image_topic))
-		{
-			ROS_ERROR("Could not find image_topic parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/canny_lowThreshold", canny_lowThreshold))
-		{
-			ROS_ERROR("Could not find canny_lowThreshold parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/canny_highThreshold", canny_highThreshold))
-		{
-			ROS_ERROR("Could not find canny_highThreshold parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/canny_perBlindHorizon", canny_perBlindHorizon))
-		{
-			ROS_ERROR("Could not find canny_perBlindHorizon parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/hough_int_rho", hough_int_rho))
-		{
-			ROS_ERROR("Could not find hough_int_rho parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/hough_int_theta", hough_int_theta))
-		{
-			ROS_ERROR("Could not find hough_int_theta parameter!");
-			// ros::requestShutdown();
-		}
-		if (!_nh.getParam("/automodel/line_detector/hough_threshold", hough_threshold))
-		{
-			ROS_ERROR("Could not find hough_threshold parameter!");
-			// ros::requestShutdown();
-		}
-
-		if (!_nh.getParam("/automodel/line_detector/debug", debug))
-		{
-			ROS_ERROR("Could not find debug parameter!");
-			// 	//ros::requestShutdown();
-		}
+	void AutomodelLineDetector::read_parameters()
+	{
+		_nh.param("/automodel/line_detector/image_topic", image_topic, std::string("/app/camera/rgb/image_raw"));
+		_nh.param("/automodel/line_detector/canny_lowThreshold", canny_lowThreshold, 172);
+		_nh.param("/automodel/line_detector/canny_highThreshold", canny_highThreshold, 179);
+		_nh.param("/automodel/line_detector/canny_perBlindHorizon", canny_perBlindHorizon, 46);
+		_nh.param("/automodel/line_detector/hough_int_rho", hough_int_rho, 1);
+		_nh.param("/automodel/line_detector/hough_int_theta", hough_int_theta, 1);
+		_nh.param("/automodel/line_detector/hough_threshold", hough_threshold, 45);
 
 		ROS_INFO_STREAM("Image topic: " << image_topic);
 		ROS_INFO_STREAM("Canny lowThreshold: " << canny_lowThreshold);
 		ROS_INFO_STREAM("Canny highThreshold: " << canny_highThreshold);
-		ROS_INFO_STREAM("Percentage blind horizon: " << canny_perBlindHorizon);
-		ROS_INFO_STREAM("Hough rho (distance accumulador): " << hough_int_rho);
-		ROS_INFO_STREAM("Hough theta (angle accumulator): " << hough_int_theta);
-		ROS_INFO_STREAM("Hough accumulator threshold: " << hough_threshold);
-		ROS_INFO_STREAM("Debug: " << debug);
-	}
-
-	void AutomodelLineDetector::visualize(const sensor_msgs::ImageConstPtr &msg)
-	{
-
-		imageColor = cv_bridge::toCvShare(msg, "bgr8")->image;
-		cv::imshow(IN_NAMED_WINDOW, imageColor);
-
-		if (linesRight.size() > 0)
-		{
-
-			float rhot = linesRight[0][0], thetat = linesRight[0][1];
-			Point pt1, pt2;
-			double a = cos(thetat), b = sin(thetat);
-			double x0 = a * rhot, y0 = b * rhot;
-			pt1.x = cvRound(x0 + 1000 * (-b));
-			pt1.y = cvRound(y0 + 1000 * (a));
-			pt2.x = cvRound(x0 - 1000 * (-b));
-			pt2.y = cvRound(y0 - 1000 * (a));
-			line(imageColor, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
-			putText(imageColor, "RIGTH: rho " + to_string(rhot) + " angle: " + to_string(thetat), cvPoint(30, 30),
-					FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0, 0, 250), 1, LINE_AA);
-		}
-		if (linesLeft.size() > 0)
-		{
-			float rhot = linesLeft[0][0];
-			float thetat = linesLeft[0][1];
-			Point pt1, pt2;
-			double a = cos(thetat), b = sin(thetat);
-			double x0 = a * rhot, y0 = b * rhot;
-			pt1.x = cvRound(x0 + 1000 * (-b));
-			pt1.y = cvRound(y0 + 1000 * (a));
-			pt2.x = cvRound(x0 - 1000 * (-b));
-			pt2.y = cvRound(y0 - 1000 * (a));
-			line(imageColor, pt1, pt2, Scalar(0, 255, 0), 3, LINE_AA);
-			putText(imageColor, "LEFT: rho " + to_string(rhot) + " angle: " + to_string(thetat), cvPoint(30, 80),
-					FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0, 250, 0), 1, LINE_AA);
-		}
-
-		cv::imshow(OUT2_NAMED_WINDOW, imageColor);
-		cv::imshow(OUT_NAMED_WINDOW, mask_yw_image);
-
-		if (cv::waitKey(15) == 's')
-		{
-			saveParameters();
-		}
+		ROS_INFO_STREAM("Blind horizon (%): " << canny_perBlindHorizon);
+		ROS_INFO_STREAM("Hough rho: " << hough_int_rho);
+		ROS_INFO_STREAM("Hough theta: " << hough_int_theta);
+		ROS_INFO_STREAM("Hough threshold: " << hough_threshold);
 	}
 
 	void AutomodelLineDetector::saveParameters()
 	{
-
 		std::string file = ros::package::getPath("automodel_line_detector") + "/config/config_new.yaml";
-
 		FileStorage fs(file, FileStorage::WRITE);
-
-		fs << "debug" << debug;
 		fs << "image_topic" << image_topic;
 		fs << "canny_lowThreshold" << canny_lowThreshold;
 		fs << "canny_highThreshold" << canny_highThreshold;
@@ -247,8 +206,8 @@ namespace automodel::line_detector
 		fs << "hough_int_theta" << hough_int_theta;
 		fs << "hough_threshold" << hough_threshold;
 
-		ROS_WARN_STREAM("File Saved on " << file);
+		ROS_WARN_STREAM("File saved at " << file);
 		ROS_WARN_STREAM("EDIT AND REPLACE to APPLY!");
 	}
 
-} /* namespace automodel */
+} // namespace automodel::line_detector

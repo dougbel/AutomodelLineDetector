@@ -1,6 +1,5 @@
-<?xml version="1.0"?>
-
 <launch>
+  <arg name="debug" default="true" /> 
 
   <arg name="video_path" default="/home/docker/catkin_ws/data/CarroAutonomo.avi" />
   <arg name="loop" default="true" />
@@ -12,5 +11,8 @@
   <node name="automodel_line_detector" pkg="automodel_line_detector" type="automodel_line_detector_node" output="screen" cwd="node" >
   		<rosparam command="load" file="$(find automodel_line_detector)/config/config.yaml" />
   </node>
+
+  <node if="$(arg debug)" name="rqt_gui" pkg="rqt_gui" type="rqt_gui" output="screen"
+        args="--perspective-file $(find automodel_line_detector)/config/line_detector.perspective" />
 
 </launch>

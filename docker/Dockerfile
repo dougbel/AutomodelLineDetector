@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-image-transport \
     ros-noetic-vision-opencv \
     ros-noetic-rqt-image-view \
+    ros-noetic-rqt-reconfigure \
     python3-opencv \
     python3-catkin-tools \
     python3-pip \
