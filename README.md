@@ -48,9 +48,6 @@ This repository provides of a ROS prototype line detector that outputs vital pos
    - Parameter:
 
      The parameters intialization is set in the *config/config.yaml* file
-     - */automodel/line_detector/debug*
-     
-       If *true*, indicates if a visualization of the detected lines is showcased
 
      - */automodel/line_detector/image_topic*
      
@@ -83,6 +80,7 @@ This repository provides of a ROS prototype line detector that outputs vital pos
       rosrun video_publisher video_publisher_node _video_path:=[VIDEO_FILE]
       ```
 
+      Check that the debug argument in this launch file is set to *true* for the detected lines to be showcased and for the reconfiguration tools.
 
 
 ## 🚀 Getting Started
@@ -126,12 +124,5 @@ rosrun video_publisher video_publisher_node _video_path:=[VIDEO_FILE]
 ```
 the *debug* param is by default adjusted in true. This will showw you three windows where you can observe the output and change the parameter (Note: they are not saved for future execution, so adviced to write them down)
 
-<table>
-    <tr>
-        <td rowspan="2"><img src="./doc/win1.jpg" alt="Example 1" height="500"/></td>
-        <td><img src="./doc/win2.jpg" alt="Example 2" height="250"/></td>
-    </tr>
-    <tr>
-        <td><img src="./doc/win3.jpg" alt="Example 3" height="250"/></td>
-    </tr>
-</table>
+
+![Reconfiguration app](./doc/debug_window.png)
