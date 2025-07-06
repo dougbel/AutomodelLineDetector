@@ -1,2 +1,5 @@
 .catkin_tools/*
 data/CarroAutonomo.avi
+build/*
+devel/*
+logs/*

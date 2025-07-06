@@ -2,7 +2,7 @@
  * AutomodelLineDetector.cpp
  *
  *  Created on: Mar 16, 2018
- *      Author: dougbel
+ *      Abel Pacheco Ortega
  */
 
 #include "automodel_line_detector.hpp"
@@ -25,10 +25,13 @@ namespace automodel::line_detector
 		_pub_img_lines = it.advertise("img_lines", 1);
 		_pub_img_edges = it.advertise("img_edges", 1);
 
+		_cb_lines_left = boost::circular_buffer<Vec2f>(line_circular_buffer_size);
+		_cb_lines_right = boost::circular_buffer<Vec2f>(line_circular_buffer_size);
+
 		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig>::CallbackType f;
 
 		f = boost::bind(&AutomodelLineDetector::set_parameters, this, _1, _2);
-		server.setCallback(f);
+		config_server.setCallback(f);
 	}
 
 	void AutomodelLineDetector::set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level)
@@ -42,13 +45,13 @@ namespace automodel::line_detector
 		hough_int_theta = config.hough_int_theta;
 		hough_threshold = config.hough_threshold;
 
-		// createTrackbar("Threshold low", IN_NAMED_WINDOW, &canny_lowThreshold, 255);
-		// createTrackbar("Threshold high", IN_NAMED_WINDOW, &canny_highThreshold, 255);
-		// createTrackbar("Perc horizon", IN_NAMED_WINDOW, &canny_perBlindHorizon, 100);
-
-		// createTrackbar("Hough ro", IN_NAMED_WINDOW, &hough_int_rho, 50);
-		// createTrackbar("Hough theta", IN_NAMED_WINDOW, &hough_int_theta, 360);
-		// createTrackbar("Hough threshold", IN_NAMED_WINDOW, &hough_threshold, 300);
+		if (config.line_circular_buffer_size != _cb_lines_left.capacity())
+		{
+			ROS_INFO_STREAM("Resizing circular buffers from " << _cb_lines_left.capacity()
+															  << " to " << config.line_circular_buffer_size);
+			_cb_lines_left.rset_capacity(config.line_circular_buffer_size);
+			_cb_lines_right.rset_capacity(config.line_circular_buffer_size);
+		}
 	}
 
 	AutomodelLineDetector::~AutomodelLineDetector()
@@ -94,33 +97,58 @@ namespace automodel::line_detector
 		std::vector<Vec2f> all_lines;
 		HoughLines(edges, all_lines, rho, theta, hough_threshold);
 
-		_linesLeft.clear();
-		_linesRight.clear();
+		bool detected;
+
+		detected = false;
 		for (const auto &line : all_lines)
 		{
 			if (line[1] >= 0 && line[1] <= (CV_PI / 3))
-			{ // 0 to 60 degrees
-				_linesLeft.push_back(line);
+			{
+				// 0 to 60 degrees
+				detected = true;
+				_cb_lines_left.push_back(line);
 				break;
 			}
 		}
+		if (!detected && _cb_lines_left.size() > 0)
+		{
+			_cb_lines_left.pop_front();
+		}
+
+		detected = false;
 		for (const auto &line : all_lines)
 		{
 			if (line[1] >= (2 * CV_PI / 3) && line[1] <= CV_PI)
-			{ // 120 to 180 degrees
-				_linesRight.push_back(line);
+			{
+				// 120 to 180 degrees
+				detected = true;
+				_cb_lines_right.push_back(line);
 				break;
 			}
+		}
+
+		if (!detected && _cb_lines_right.size() > 0)
+		{
+			_cb_lines_right.pop_front();
 		}
 	}
 
 	void AutomodelLineDetector::publishLines()
 	{
-		auto publish_line = [](ros::Publisher &pub, const std::vector<Vec2f> &lines, const std::string &label)
+		auto publish_line = [](ros::Publisher &pub, const boost::circular_buffer<Vec2f> &cb_lines, const std::string &label)
 		{
-			if (!lines.empty())
+			if (!cb_lines.empty())
 			{
-				float rho = lines[0][0], theta = lines[0][1];
+				// float rho = lines[0][0], theta = lines[0][1];
+				float rho = 0, theta = 0;
+				for (Vec2f x : cb_lines)
+				{
+					rho += x[0];
+					theta += x[1];
+				}
+				rho /= cb_lines.size();
+				theta /= cb_lines.size();
+
 				std_msgs::Float32MultiArray msg;
 				msg.layout.dim.emplace_back();
 				msg.layout.dim[0].size = 3;
@@ -131,8 +159,8 @@ namespace automodel::line_detector
 			}
 		};
 
-		publish_line(_pub_line_left, _linesLeft, "left");
-		publish_line(_pub_line_right, _linesRight, "right");
+		publish_line(_pub_line_left, _cb_lines_left, "left");
+		publish_line(_pub_line_right, _cb_lines_right, "right");
 	}
 
 	void AutomodelLineDetector::publish_img_lines(Mat &image)
@@ -141,11 +169,18 @@ namespace automodel::line_detector
 			return;
 
 		imageColor = image.clone();
-		auto draw_line = [&](const std::vector<Vec2f> &lines, Scalar color, const std::string &label, Point text_pos)
+		auto draw_line = [&](const boost::circular_buffer<Vec2f> &cb_lines, Scalar color, const std::string &label, Point text_pos)
 		{
-			if (!lines.empty())
+			if (!cb_lines.empty())
 			{
-				float rho = lines[0][0], theta = lines[0][1];
+				float rho = 0, theta = 0;
+				for (Vec2f x : cb_lines)
+				{
+					rho += x[0];
+					theta += x[1];
+				}
+				rho /= cb_lines.size();
+				theta /= cb_lines.size();
 				double a = cos(theta), b = sin(theta);
 				double x0 = a * rho, y0 = b * rho;
 				Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
@@ -155,8 +190,8 @@ namespace automodel::line_detector
 						FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, LINE_AA);
 			}
 		};
-		draw_line(_linesRight, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
-		draw_line(_linesLeft, Scalar(0, 255, 0), "LEFT", Point(30, 80));
+		draw_line(_cb_lines_right, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
+		draw_line(_cb_lines_left, Scalar(0, 255, 0), "LEFT", Point(30, 80));
 
 		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imageColor).toImageMsg();
 		imgMsg->header.stamp = ros::Time::now();
@@ -184,6 +219,7 @@ namespace automodel::line_detector
 		_nh.param("/automodel/line_detector/hough_int_rho", hough_int_rho, 1);
 		_nh.param("/automodel/line_detector/hough_int_theta", hough_int_theta, 1);
 		_nh.param("/automodel/line_detector/hough_threshold", hough_threshold, 45);
+		_nh.param("/automodel/line_detector/line_circular_buffer_size", line_circular_buffer_size, 10);
 
 		ROS_INFO_STREAM("Image topic: " << image_topic);
 		ROS_INFO_STREAM("Canny lowThreshold: " << canny_lowThreshold);
@@ -192,6 +228,7 @@ namespace automodel::line_detector
 		ROS_INFO_STREAM("Hough rho: " << hough_int_rho);
 		ROS_INFO_STREAM("Hough theta: " << hough_int_theta);
 		ROS_INFO_STREAM("Hough threshold: " << hough_threshold);
+		ROS_INFO_STREAM("Circular Buffer" << line_circular_buffer_size);
 	}
 
 	void AutomodelLineDetector::saveParameters()
@@ -205,6 +242,7 @@ namespace automodel::line_detector
 		fs << "hough_int_rho" << hough_int_rho;
 		fs << "hough_int_theta" << hough_int_theta;
 		fs << "hough_threshold" << hough_threshold;
+		fs << "line_circular_buffer_size" << line_circular_buffer_size;
 
 		ROS_WARN_STREAM("File saved at " << file);
 		ROS_WARN_STREAM("EDIT AND REPLACE to APPLY!");

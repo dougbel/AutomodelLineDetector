@@ -2,7 +2,7 @@
  * AutomodelLineDetector.h
  *
  *  Created on: Mar 16, 2018
- *      Author: dougbel
+ *      Abel Pacheco Ortega
  */
 
 #ifndef SRC_AUTOMODELLINEDETECTOR_H_
@@ -12,6 +12,7 @@
 #include "std_msgs/Float32MultiArray.h"
 #include <opencv2/opencv.hpp>
 #include "opencv2/imgproc.hpp"
+#include <boost/circular_buffer.hpp>
 #include <image_transport/image_transport.h>
 #include <ros/package.h>
 
@@ -45,8 +46,6 @@ namespace automodel::line_detector
 		void publish_img_edges(Mat &image);
 		void read_parameters();
 
-		void set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level);
-
 	private:
 		void saveParameters();
 
@@ -65,13 +64,13 @@ namespace automodel::line_detector
 		int hough_int_rho;
 		int hough_int_theta;
 		int hough_threshold;
+		int line_circular_buffer_size;
 
 		Mat mask_yw_image;
 		Mat imageColor;
 
-		// to use in Hough tranform
-		vector<Vec2f> _linesLeft;
-		vector<Vec2f> _linesRight;
+		boost::circular_buffer<Vec2f> _cb_lines_left;
+		boost::circular_buffer<Vec2f> _cb_lines_right;
 
 		ros::Publisher _pub_line_left;
 		ros::Publisher _pub_line_right;
@@ -79,7 +78,8 @@ namespace automodel::line_detector
 		image_transport::Publisher _pub_img_lines;
 		image_transport::Publisher _pub_img_edges;
 
-		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig> server;
+		void set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level);
+		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig> config_server;
 	};
 
 }

@@ -6,3 +6,4 @@
 /automodel/line_detector/hough_int_rho: 1
 /automodel/line_detector/hough_int_theta: 1
 /automodel/line_detector/hough_threshold: 45
+/automodel/line_detector/line_circular_buffer_size: 5
