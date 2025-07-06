@@ -6,85 +6,87 @@
 #include <string>
 #include "video_publisher.hpp"
 
-using namespace video_publisher;
-
-VideoPublisher::VideoPublisher(ros::NodeHandle &nodeHandle) : _nh(nodeHandle)
+namespace video_publisher
 {
 
-    _nh.param<std::string>("video_path", _video_file, "/home/docker/catkin_ws/CarroAutonomo.avi");
-    _nh.param<bool>("loop", _loop, true);
-
-    // this is not a best practice http://wiki.ros.org/image_transport
-    //  _pub = _nh.advertise<sensor_msgs::Image>("frames", 10);
-
-    image_transport::ImageTransport it(_nh);
-
-    _pub = it.advertise("frames", 1);
-
-    _running = false;
-    _cap = cv::VideoCapture(_video_file);
-    if (!_cap.isOpened())
+    VideoPublisher::VideoPublisher(ros::NodeHandle &nodeHandle) : nh_(nodeHandle)
     {
-        ROS_ERROR_STREAM("Cannot open video file " << _video_file);
-    }
-}
 
-VideoPublisher::~VideoPublisher()
-{
-    _running = false;
-    if (_thread.joinable())
-    {
-        _thread.join();
-    }
-    _cap.release();
-}
+        nh_.param<std::string>("video_path", video_file_, "/home/docker/catkin_ws/CarroAutonomo.avi");
+        nh_.param<bool>("loop", loop_, true);
 
-void VideoPublisher::publish_frames()
-{
-    if (!_running)
-    {
-        _running = true;
-        _thread = std::thread(&VideoPublisher::start, this);
-    }
-}
+        // this is not a best practice http://wiki.ros.org/image_transport
+        //  _pub = _nh.advertise<sensor_msgs::Image>("frames", 10);
 
-void VideoPublisher::start()
-{
-    // Set publish rate (30 Hz)
-    ros::Rate rate(30);
-    cv::Mat frame;
-    sensor_msgs::ImagePtr imgMsg;
-    while (ros::ok() && _running && _cap.isOpened())
-    {
-        _cap >> frame;
+        image_transport::ImageTransport it(nh_);
 
-        if (frame.empty())
+        pub_ = it.advertise("frames", 1);
+
+        running_ = false;
+        video_cap_ = cv::VideoCapture(video_file_);
+        if (!video_cap_.isOpened())
         {
-            if (_loop)
+            ROS_ERROR_STREAM("Cannot open video file " << video_file_);
+        }
+    }
+
+    VideoPublisher::~VideoPublisher()
+    {
+        running_ = false;
+        if (stream_thread_.joinable())
+        {
+            stream_thread_.join();
+        }
+        video_cap_.release();
+    }
+
+    void VideoPublisher::publish_frames()
+    {
+        if (!running_)
+        {
+            running_ = true;
+            stream_thread_ = std::thread(&VideoPublisher::start, this);
+        }
+    }
+
+    void VideoPublisher::start()
+    {
+        // Set publish rate (30 Hz)
+        ros::Rate rate(30);
+        cv::Mat frame;
+        sensor_msgs::ImagePtr imgMsg;
+        while (ros::ok() && running_ && video_cap_.isOpened())
+        {
+            video_cap_ >> frame;
+
+            if (frame.empty())
             {
-                _cap.set(cv::CAP_PROP_POS_FRAMES, 0);
-                ROS_INFO("Looping video stream");
-                continue;
+                if (loop_)
+                {
+                    video_cap_.set(cv::CAP_PROP_POS_FRAMES, 0);
+                    ROS_INFO("Looping video stream");
+                    continue;
+                }
+                else
+                {
+                    ROS_INFO("End of video stream");
+                    break;
+                }
             }
-            else
-            {
-                ROS_INFO("End of video stream");
-                break;
-            }
-        }
 
-        std_msgs::Header header;
-        header.stamp = ros::Time::now();
-        header.frame_id = "camera_frame";
-        try
-        {
-            imgMsg = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
-            _pub.publish(imgMsg);
+            std_msgs::Header header;
+            header.stamp = ros::Time::now();
+            header.frame_id = "camera_frame";
+            try
+            {
+                imgMsg = cv_bridge::CvImage(header, "bgr8", frame).toImageMsg();
+                pub_.publish(imgMsg);
+            }
+            catch (cv_bridge::Exception e)
+            {
+                ROS_ERROR_STREAM("cv_bridge expcetion: " << e.what());
+            }
+            rate.sleep();
         }
-        catch (cv_bridge::Exception e)
-        {
-            ROS_ERROR_STREAM("cv_bridge expcetion: " << e.what());
-        }
-        rate.sleep();
     }
-}
+} // namespace video_publisher

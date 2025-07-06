@@ -1,12 +1,10 @@
-/*
- * AutomodelLineDetector.h
- *
- *  Created on: Mar 16, 2018
- *      Abel Pacheco Ortega
- */
+// automodel_line_detector.cpp
+// Header of the AutomodelLineDetector class for line detection using OpenCV and ROS.
+//
+// Created on: Mar 16, 2018
+// Author: Abel Pacheco Ortega
 
-#ifndef SRC_AUTOMODELLINEDETECTOR_H_
-#define SRC_AUTOMODELLINEDETECTOR_H_
+#pragma once
 
 #include "cv_bridge/cv_bridge.h"
 #include "std_msgs/Float32MultiArray.h"
@@ -19,15 +17,12 @@
 #include <dynamic_reconfigure/server.h>
 #include <automodel_line_detector/line_detectorConfig.h> // auto-generated
 
-using namespace std;
-using namespace cv;
-
 namespace automodel::line_detector
 {
 
-	const string IN_NAMED_WINDOW = "Input";
-	const string OUT_NAMED_WINDOW = "Output";
-	const string OUT2_NAMED_WINDOW = "Output prev";
+	const std::string IN_NAMED_WINDOW = "Input";
+	const std::string OUT_NAMED_WINDOW = "Output";
+	const std::string OUT2_NAMED_WINDOW = "Output prev";
 
 	class AutomodelLineDetector
 	{
@@ -42,47 +37,45 @@ namespace automodel::line_detector
 		void publishLines();
 
 		// void createGUI();
-		void publish_img_lines(Mat &image);
-		void publish_img_edges(Mat &image);
+		void publish_img_lines(cv::Mat &image);
+		void publish_img_edges(const cv::Mat &image);
 		void read_parameters();
 
 	private:
 		void saveParameters();
 
-		ros::NodeHandle _nh;
-		string image_topic;
-		image_transport::Subscriber sub;
+		ros::NodeHandle nh_;
+		std::string image_topic;
+		image_transport::Subscriber sub_;
 
 		// Para Cannny
-		int canny_lowThreshold;
-		int canny_highThreshold;
-		int canny_perBlindHorizon;
+		int canny_low_thresh_;
+		int canny_high_thresh_;
+		int canny_percentage_horizon;
 
 		// Para Hough
-		double rho;
-		double theta;
-		int hough_int_rho;
-		int hough_int_theta;
-		int hough_threshold;
-		int line_circular_buffer_size;
+		double rho_;
+		double theta_;
+		int hough_int_rho_;
+		int hough_int_theta_;
+		int hough_threshold_;
+		int line_circular_buffer_size_;
 
-		Mat mask_yw_image;
-		Mat imageColor;
+		cv::Mat mask_yw_image_;
+		cv::Mat imageColor_;
 
-		boost::circular_buffer<Vec2f> _cb_lines_left;
-		boost::circular_buffer<Vec2f> _cb_lines_right;
+		boost::circular_buffer<cv::Vec2f> cb_lines_left_;
+		boost::circular_buffer<cv::Vec2f> cb_lines_right_;
 		std::optional<cv::Vec2f> compute_average_line(const boost::circular_buffer<cv::Vec2f> &cb_lines) const;
 
-		ros::Publisher _pub_line_left;
-		ros::Publisher _pub_line_right;
+		ros::Publisher pub_line_left_;
+		ros::Publisher pub_line_right_;
 
-		image_transport::Publisher _pub_img_lines;
-		image_transport::Publisher _pub_img_edges;
+		image_transport::Publisher pub_img_lines_;
+		image_transport::Publisher pub_img_edges_;
 
 		void set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level);
-		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig> config_server;
+		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig> config_server_;
 	};
 
 }
-
-#endif

@@ -1,56 +1,51 @@
-/*
- * AutomodelLineDetector.cpp
- *
- *  Created on: Mar 16, 2018
- *      Abel Pacheco Ortega
- */
+// automodel_line_detector.cpp
+// Implementation of the AutomodelLineDetector class for line detection using OpenCV and ROS.
+//
+// Created on: Mar 16, 2018
+// Author: Abel Pacheco Ortega
 
 #include "automodel_line_detector.hpp"
-
-using namespace cv;
 
 namespace automodel::line_detector
 {
 
-	AutomodelLineDetector::AutomodelLineDetector(ros::NodeHandle &nodeHandle) : _nh(nodeHandle)
+	AutomodelLineDetector::AutomodelLineDetector(ros::NodeHandle &nodeHandle) : nh_(nodeHandle)
 	{
 		read_parameters();
 
-		image_transport::ImageTransport it(_nh);
-		sub = it.subscribe(image_topic, 1, &AutomodelLineDetector::detect, this);
+		image_transport::ImageTransport it(nh_);
+		sub_ = it.subscribe(image_topic, 1, &AutomodelLineDetector::detect, this);
 
-		_pub_line_left = _nh.advertise<std_msgs::Float32MultiArray>("left", 1);
-		_pub_line_right = _nh.advertise<std_msgs::Float32MultiArray>("right", 1);
+		pub_line_left_ = nh_.advertise<std_msgs::Float32MultiArray>("left", 1);
+		pub_line_right_ = nh_.advertise<std_msgs::Float32MultiArray>("right", 1);
 
-		_pub_img_lines = it.advertise("img_lines", 1);
-		_pub_img_edges = it.advertise("img_edges", 1);
+		pub_img_lines_ = it.advertise("img_lines", 1);
+		pub_img_edges_ = it.advertise("img_edges", 1);
 
-		_cb_lines_left = boost::circular_buffer<Vec2f>(line_circular_buffer_size);
-		_cb_lines_right = boost::circular_buffer<Vec2f>(line_circular_buffer_size);
+		cb_lines_left_ = boost::circular_buffer<cv::Vec2f>(line_circular_buffer_size_);
+		cb_lines_right_ = boost::circular_buffer<cv::Vec2f>(line_circular_buffer_size_);
 
 		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig>::CallbackType f;
 
 		f = boost::bind(&AutomodelLineDetector::set_parameters, this, _1, _2);
-		config_server.setCallback(f);
+		config_server_.setCallback(f);
 	}
 
 	void AutomodelLineDetector::set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level)
 	{
 		// Update your internal parameters
-		canny_perBlindHorizon = config.canny_perBlindHorizon;
-		canny_lowThreshold = config.canny_lowThreshold;
-		canny_highThreshold = config.canny_highThreshold;
+		canny_percentage_horizon = config.canny_perBlindHorizon;
+		canny_low_thresh_ = config.canny_lowThreshold;
+		canny_high_thresh_ = config.canny_highThreshold;
 
-		hough_int_rho = config.hough_int_rho;
-		hough_int_theta = config.hough_int_theta;
-		hough_threshold = config.hough_threshold;
+		hough_int_rho_ = config.hough_int_rho;
+		hough_int_theta_ = config.hough_int_theta;
+		hough_threshold_ = config.hough_threshold;
 
-		if (config.line_circular_buffer_size != _cb_lines_left.capacity())
+		if (config.line_circular_buffer_size != cb_lines_left_.capacity())
 		{
-			ROS_INFO_STREAM("Resizing circular buffers from " << _cb_lines_left.capacity()
-															  << " to " << config.line_circular_buffer_size);
-			_cb_lines_left.rset_capacity(config.line_circular_buffer_size);
-			_cb_lines_right.rset_capacity(config.line_circular_buffer_size);
+			cb_lines_left_.rset_capacity(config.line_circular_buffer_size);
+			cb_lines_right_.rset_capacity(config.line_circular_buffer_size);
 		}
 	}
 
@@ -77,25 +72,25 @@ namespace automodel::line_detector
 	cv::Mat AutomodelLineDetector::preprocess_image(const cv::Mat &img_mono)
 	{
 		cv::Mat mask_white, masked_image;
-		inRange(img_mono, canny_lowThreshold, canny_highThreshold, mask_white);
+		inRange(img_mono, canny_low_thresh_, canny_high_thresh_, mask_white);
 		bitwise_and(img_mono, mask_white, masked_image);
 
-		const int horizon_y = static_cast<int>(0.01 * canny_perBlindHorizon * img_mono.rows);
-		masked_image(Rect(0, 0, img_mono.cols, horizon_y)) = Scalar(0);
+		const int horizon_y = static_cast<int>(0.01 * canny_percentage_horizon * img_mono.rows);
+		masked_image(cv::Rect(0, 0, img_mono.cols, horizon_y)) = cv::Scalar(0);
 
 		cv::Mat edges;
-		cv::Canny(masked_image, edges, canny_lowThreshold, canny_highThreshold);
+		cv::Canny(masked_image, edges, canny_low_thresh_, canny_high_thresh_);
 
 		return edges;
 	}
 
 	void AutomodelLineDetector::detect_lines(const cv::Mat &edges)
 	{
-		rho = hough_int_rho;
-		theta = hough_int_theta * CV_PI / 180;
+		rho_ = hough_int_rho_;
+		theta_ = hough_int_theta_ * CV_PI / 180;
 
-		std::vector<Vec2f> all_lines;
-		HoughLines(edges, all_lines, rho, theta, hough_threshold);
+		std::vector<cv::Vec2f> all_lines;
+		HoughLines(edges, all_lines, rho_, theta_, hough_threshold_);
 
 		bool found_left = false, found_right = false;
 
@@ -105,12 +100,12 @@ namespace automodel::line_detector
 
 			if (!found_left && angle >= 0 && angle <= (CV_PI / 3)) // 0 to 60 degrees
 			{
-				_cb_lines_left.push_back(line);
+				cb_lines_left_.push_back(line);
 				found_left = true;
 			}
 			else if (!found_right && angle >= (2 * CV_PI / 3) && angle <= CV_PI) // 120 to 180 degrees
 			{
-				_cb_lines_right.push_back(line);
+				cb_lines_right_.push_back(line);
 				found_right = true;
 			}
 
@@ -118,10 +113,10 @@ namespace automodel::line_detector
 				break;
 		}
 
-		if (!found_left && !_cb_lines_left.empty())
-			_cb_lines_left.pop_front();
-		if (!found_right && !_cb_lines_right.empty())
-			_cb_lines_right.pop_front();
+		if (!found_left && !cb_lines_left_.empty())
+			cb_lines_left_.pop_front();
+		if (!found_right && !cb_lines_right_.empty())
+			cb_lines_right_.pop_front();
 	}
 
 	std::optional<cv::Vec2f> AutomodelLineDetector::compute_average_line(const boost::circular_buffer<cv::Vec2f> &cb_lines) const
@@ -140,7 +135,7 @@ namespace automodel::line_detector
 
 	void AutomodelLineDetector::publishLines()
 	{
-		auto publish_line = [](ros::Publisher &pub, const Vec2f &detected_line, const std::string &label)
+		auto publish_line = [](ros::Publisher &pub, const cv::Vec2f &detected_line, const std::string &label)
 		{
 			// float rho = lines[0][0], theta = lines[0][1];
 			const float rho = detected_line[0];
@@ -155,100 +150,100 @@ namespace automodel::line_detector
 			pub.publish(msg);
 		};
 
-		auto left_line = compute_average_line(_cb_lines_left);
+		auto left_line = compute_average_line(cb_lines_left_);
 		if (left_line)
 		{
-			publish_line(_pub_line_left, *left_line, "left");
+			publish_line(pub_line_left_, *left_line, "left");
 		}
 
-		auto right_line = compute_average_line(_cb_lines_right);
+		auto right_line = compute_average_line(cb_lines_right_);
 		if (right_line)
 		{
-			publish_line(_pub_line_right, *right_line, "right");
+			publish_line(pub_line_right_, *right_line, "right");
 		}
 	}
 
-	void AutomodelLineDetector::publish_img_lines(Mat &image)
+	void AutomodelLineDetector::publish_img_lines(cv::Mat &image)
 	{
-		if (_pub_img_lines.getNumSubscribers() == 0)
+		if (pub_img_lines_.getNumSubscribers() == 0)
 			return;
 
-		imageColor = image.clone();
-		auto draw_line = [&](const Vec2f &detected_line, Scalar color, const std::string &label, Point text_pos)
+		imageColor_ = image.clone();
+		auto draw_line = [&](const cv::Vec2f &detected_line, cv::Scalar color, const std::string &label, cv::Point text_pos)
 		{
 			const float rho = detected_line[0];
 			const float theta = detected_line[1];
 			double a = cos(theta), b = sin(theta);
 			double x0 = a * rho, y0 = b * rho;
-			Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
-			Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
-			line(imageColor, pt1, pt2, color, 3, LINE_AA);
-			putText(imageColor, label + ": rho " + to_string(rho) + " angle: " + to_string(theta), text_pos,
-					FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, LINE_AA);
+			cv::Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
+			cv::Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
+			line(imageColor_, pt1, pt2, color, 3, cv::LINE_AA);
+			putText(imageColor_, label + ": rho " + std::to_string(rho) + " angle: " + std::to_string(theta), text_pos,
+					cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, cv::LINE_AA);
 		};
 
-		auto left_line = compute_average_line(_cb_lines_left);
+		auto left_line = compute_average_line(cb_lines_left_);
 		if (left_line)
 		{
-			draw_line(*left_line, Scalar(0, 255, 0), "LEFT", Point(30, 80));
+			draw_line(*left_line, cv::Scalar(0, 255, 0), "LEFT", cv::Point(30, 80));
 		}
 
-		auto right_line = compute_average_line(_cb_lines_right);
+		auto right_line = compute_average_line(cb_lines_right_);
 		if (right_line)
 		{
-			draw_line(*right_line, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
+			draw_line(*right_line, cv::Scalar(0, 0, 255), "RIGHT", cv::Point(30, 30));
 		}
 
-		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imageColor).toImageMsg();
+		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imageColor_).toImageMsg();
 		imgMsg->header.stamp = ros::Time::now();
 		imgMsg->header.frame_id = "img_lines";
-		_pub_img_lines.publish(imgMsg);
+		pub_img_lines_.publish(imgMsg);
 	}
 
-	void AutomodelLineDetector::publish_img_edges(Mat &image)
+	void AutomodelLineDetector::publish_img_edges(const cv::Mat &image)
 	{
-		if (_pub_img_edges.getNumSubscribers() == 0)
+		if (pub_img_edges_.getNumSubscribers() == 0)
 			return;
 
 		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "mono8", image).toImageMsg();
 		imgMsg->header.stamp = ros::Time::now();
 		imgMsg->header.frame_id = "img_edges";
-		_pub_img_edges.publish(imgMsg);
+		pub_img_edges_.publish(imgMsg);
 	}
 
 	void AutomodelLineDetector::read_parameters()
 	{
-		_nh.param("/automodel/line_detector/image_topic", image_topic, std::string("/app/camera/rgb/image_raw"));
-		_nh.param("/automodel/line_detector/canny_lowThreshold", canny_lowThreshold, 172);
-		_nh.param("/automodel/line_detector/canny_highThreshold", canny_highThreshold, 179);
-		_nh.param("/automodel/line_detector/canny_perBlindHorizon", canny_perBlindHorizon, 46);
-		_nh.param("/automodel/line_detector/hough_int_rho", hough_int_rho, 1);
-		_nh.param("/automodel/line_detector/hough_int_theta", hough_int_theta, 1);
-		_nh.param("/automodel/line_detector/hough_threshold", hough_threshold, 45);
-		_nh.param("/automodel/line_detector/line_circular_buffer_size", line_circular_buffer_size, 10);
+		nh_.param("/automodel/line_detector/image_topic", image_topic, std::string("/app/camera/rgb/image_raw"));
+		nh_.param("/automodel/line_detector/canny_lowThreshold", canny_low_thresh_, 172);
+		nh_.param("/automodel/line_detector/canny_highThreshold", canny_high_thresh_, 179);
+		nh_.param("/automodel/line_detector/canny_perBlindHorizon", canny_percentage_horizon, 46);
+		nh_.param("/automodel/line_detector/hough_int_rho", hough_int_rho_, 1);
+		nh_.param("/automodel/line_detector/hough_int_theta", hough_int_theta_, 1);
+		nh_.param("/automodel/line_detector/hough_threshold", hough_threshold_, 45);
+		nh_.param("/automodel/line_detector/line_circular_buffer_size", line_circular_buffer_size_, 10);
 
 		ROS_INFO_STREAM("Image topic: " << image_topic);
-		ROS_INFO_STREAM("Canny lowThreshold: " << canny_lowThreshold);
-		ROS_INFO_STREAM("Canny highThreshold: " << canny_highThreshold);
-		ROS_INFO_STREAM("Blind horizon (%): " << canny_perBlindHorizon);
-		ROS_INFO_STREAM("Hough rho: " << hough_int_rho);
-		ROS_INFO_STREAM("Hough theta: " << hough_int_theta);
-		ROS_INFO_STREAM("Hough threshold: " << hough_threshold);
-		ROS_INFO_STREAM("Circular Buffer " << line_circular_buffer_size);
+		ROS_INFO_STREAM("Canny lowThreshold: " << canny_low_thresh_);
+		ROS_INFO_STREAM("Canny highThreshold: " << canny_high_thresh_);
+		ROS_INFO_STREAM("Blind horizon (%): " << canny_percentage_horizon);
+		ROS_INFO_STREAM("Hough rho: " << hough_int_rho_);
+		ROS_INFO_STREAM("Hough theta: " << hough_int_theta_);
+		ROS_INFO_STREAM("Hough threshold: " << hough_threshold_);
+		ROS_INFO_STREAM("Circular Buffer " << line_circular_buffer_size_);
 	}
 
 	void AutomodelLineDetector::saveParameters()
 	{
 		std::string file = ros::package::getPath("automodel_line_detector") + "/config/config_new.yaml";
-		FileStorage fs(file, FileStorage::WRITE);
+		cv::FileStorage fs(file, cv::FileStorage::WRITE);
 		fs << "image_topic" << image_topic;
-		fs << "canny_lowThreshold" << canny_lowThreshold;
-		fs << "canny_highThreshold" << canny_highThreshold;
-		fs << "canny_perBlindHorizon" << canny_perBlindHorizon;
-		fs << "hough_int_rho" << hough_int_rho;
-		fs << "hough_int_theta" << hough_int_theta;
-		fs << "hough_threshold" << hough_threshold;
-		fs << "line_circular_buffer_size" << line_circular_buffer_size;
+		fs << "canny_lowThreshold" << canny_low_thresh_;
+		fs << "canny_highThreshold" << canny_high_thresh_;
+		fs << "canny_perBlindHorizon" << canny_percentage_horizon;
+		fs << "hough_int_rho" << hough_int_rho_;
+		fs << "hough_int_theta" << hough_int_theta_;
+		fs << "hough_threshold" << hough_threshold_;
+		fs << "line_circular_buffer_size" << line_circular_buffer_size_;
 
 		ROS_WARN_STREAM("File saved at " << file);
 		ROS_WARN_STREAM("EDIT AND REPLACE to APPLY!");
