@@ -71,6 +71,7 @@ namespace automodel::line_detector
 
 		boost::circular_buffer<Vec2f> _cb_lines_left;
 		boost::circular_buffer<Vec2f> _cb_lines_right;
+		std::optional<cv::Vec2f> compute_average_line(const boost::circular_buffer<cv::Vec2f> &cb_lines) const;
 
 		ros::Publisher _pub_line_left;
 		ros::Publisher _pub_line_right;

@@ -80,7 +80,7 @@ namespace automodel::line_detector
 		inRange(img_mono, canny_lowThreshold, canny_highThreshold, mask_white);
 		bitwise_and(img_mono, mask_white, masked_image);
 
-		int horizon_y = static_cast<int>(0.01 * canny_perBlindHorizon * img_mono.rows);
+		const int horizon_y = static_cast<int>(0.01 * canny_perBlindHorizon * img_mono.rows);
 		masked_image(Rect(0, 0, img_mono.cols, horizon_y)) = Scalar(0);
 
 		cv::Mat edges;
@@ -97,70 +97,75 @@ namespace automodel::line_detector
 		std::vector<Vec2f> all_lines;
 		HoughLines(edges, all_lines, rho, theta, hough_threshold);
 
-		bool detected;
+		bool found_left = false, found_right = false;
 
-		detected = false;
 		for (const auto &line : all_lines)
 		{
-			if (line[1] >= 0 && line[1] <= (CV_PI / 3))
+			const float angle = line[1];
+
+			if (!found_left && angle >= 0 && angle <= (CV_PI / 3)) // 0 to 60 degrees
 			{
-				// 0 to 60 degrees
-				detected = true;
 				_cb_lines_left.push_back(line);
-				break;
+				found_left = true;
 			}
-		}
-		if (!detected && _cb_lines_left.size() > 0)
-		{
-			_cb_lines_left.pop_front();
-		}
-
-		detected = false;
-		for (const auto &line : all_lines)
-		{
-			if (line[1] >= (2 * CV_PI / 3) && line[1] <= CV_PI)
+			else if (!found_right && angle >= (2 * CV_PI / 3) && angle <= CV_PI) // 120 to 180 degrees
 			{
-				// 120 to 180 degrees
-				detected = true;
 				_cb_lines_right.push_back(line);
-				break;
+				found_right = true;
 			}
+
+			if (found_left && found_right)
+				break;
 		}
 
-		if (!detected && _cb_lines_right.size() > 0)
-		{
+		if (!found_left && !_cb_lines_left.empty())
+			_cb_lines_left.pop_front();
+		if (!found_right && !_cb_lines_right.empty())
 			_cb_lines_right.pop_front();
+	}
+
+	std::optional<cv::Vec2f> AutomodelLineDetector::compute_average_line(const boost::circular_buffer<cv::Vec2f> &cb_lines) const
+	{
+		if (cb_lines.empty())
+			return std::nullopt;
+
+		float rho_sum = 0, theta_sum = 0;
+		for (const auto &line : cb_lines)
+		{
+			rho_sum += line[0];
+			theta_sum += line[1];
 		}
+		return cv::Vec2f(rho_sum / cb_lines.size(), theta_sum / cb_lines.size());
 	}
 
 	void AutomodelLineDetector::publishLines()
 	{
-		auto publish_line = [](ros::Publisher &pub, const boost::circular_buffer<Vec2f> &cb_lines, const std::string &label)
+		auto publish_line = [](ros::Publisher &pub, const Vec2f &detected_line, const std::string &label)
 		{
-			if (!cb_lines.empty())
-			{
-				// float rho = lines[0][0], theta = lines[0][1];
-				float rho = 0, theta = 0;
-				for (Vec2f x : cb_lines)
-				{
-					rho += x[0];
-					theta += x[1];
-				}
-				rho /= cb_lines.size();
-				theta /= cb_lines.size();
+			// float rho = lines[0][0], theta = lines[0][1];
+			const float rho = detected_line[0];
+			const float theta = detected_line[1];
 
-				std_msgs::Float32MultiArray msg;
-				msg.layout.dim.emplace_back();
-				msg.layout.dim[0].size = 3;
-				msg.layout.dim[0].stride = 1;
-				msg.layout.dim[0].label = label;
-				msg.data = {cos(theta), sin(theta), rho};
-				pub.publish(msg);
-			}
+			std_msgs::Float32MultiArray msg;
+			msg.layout.dim.emplace_back();
+			msg.layout.dim[0].size = 3;
+			msg.layout.dim[0].stride = 1;
+			msg.layout.dim[0].label = label;
+			msg.data = {cos(theta), sin(theta), rho};
+			pub.publish(msg);
 		};
 
-		publish_line(_pub_line_left, _cb_lines_left, "left");
-		publish_line(_pub_line_right, _cb_lines_right, "right");
+		auto left_line = compute_average_line(_cb_lines_left);
+		if (left_line)
+		{
+			publish_line(_pub_line_left, *left_line, "left");
+		}
+
+		auto right_line = compute_average_line(_cb_lines_right);
+		if (right_line)
+		{
+			publish_line(_pub_line_right, *right_line, "right");
+		}
 	}
 
 	void AutomodelLineDetector::publish_img_lines(Mat &image)
@@ -169,29 +174,30 @@ namespace automodel::line_detector
 			return;
 
 		imageColor = image.clone();
-		auto draw_line = [&](const boost::circular_buffer<Vec2f> &cb_lines, Scalar color, const std::string &label, Point text_pos)
+		auto draw_line = [&](const Vec2f &detected_line, Scalar color, const std::string &label, Point text_pos)
 		{
-			if (!cb_lines.empty())
-			{
-				float rho = 0, theta = 0;
-				for (Vec2f x : cb_lines)
-				{
-					rho += x[0];
-					theta += x[1];
-				}
-				rho /= cb_lines.size();
-				theta /= cb_lines.size();
-				double a = cos(theta), b = sin(theta);
-				double x0 = a * rho, y0 = b * rho;
-				Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
-				Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
-				line(imageColor, pt1, pt2, color, 3, LINE_AA);
-				putText(imageColor, label + ": rho " + to_string(rho) + " angle: " + to_string(theta), text_pos,
-						FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, LINE_AA);
-			}
+			const float rho = detected_line[0];
+			const float theta = detected_line[1];
+			double a = cos(theta), b = sin(theta);
+			double x0 = a * rho, y0 = b * rho;
+			Point pt1(cvRound(x0 + 1000 * (-b)), cvRound(y0 + 1000 * (a)));
+			Point pt2(cvRound(x0 - 1000 * (-b)), cvRound(y0 - 1000 * (a)));
+			line(imageColor, pt1, pt2, color, 3, LINE_AA);
+			putText(imageColor, label + ": rho " + to_string(rho) + " angle: " + to_string(theta), text_pos,
+					FONT_HERSHEY_COMPLEX_SMALL, 0.8, color, 1, LINE_AA);
 		};
-		draw_line(_cb_lines_right, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
-		draw_line(_cb_lines_left, Scalar(0, 255, 0), "LEFT", Point(30, 80));
+
+		auto left_line = compute_average_line(_cb_lines_left);
+		if (left_line)
+		{
+			draw_line(*left_line, Scalar(0, 255, 0), "LEFT", Point(30, 80));
+		}
+
+		auto right_line = compute_average_line(_cb_lines_right);
+		if (right_line)
+		{
+			draw_line(*right_line, Scalar(0, 0, 255), "RIGHT", Point(30, 30));
+		}
 
 		sensor_msgs::ImagePtr imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", imageColor).toImageMsg();
 		imgMsg->header.stamp = ros::Time::now();
@@ -228,7 +234,7 @@ namespace automodel::line_detector
 		ROS_INFO_STREAM("Hough rho: " << hough_int_rho);
 		ROS_INFO_STREAM("Hough theta: " << hough_int_theta);
 		ROS_INFO_STREAM("Hough threshold: " << hough_threshold);
-		ROS_INFO_STREAM("Circular Buffer" << line_circular_buffer_size);
+		ROS_INFO_STREAM("Circular Buffer " << line_circular_buffer_size);
 	}
 
 	void AutomodelLineDetector::saveParameters()
