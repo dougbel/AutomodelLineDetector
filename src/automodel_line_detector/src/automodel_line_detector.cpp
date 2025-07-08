@@ -38,14 +38,14 @@ AutomodelLineDetector::AutomodelLineDetector(ros::NodeHandle &nodeHandle)
       boost::circular_buffer<cv::Vec2f>(line_circular_buffer_size_);
 
   dynamic_reconfigure::Server<
-      automodel_line_detector::line_detectorConfig>::CallbackType f;
+      automodel_line_detector::LineDetectorConfig>::CallbackType f;
 
   f = boost::bind(&AutomodelLineDetector::updateParameters, this, _1, _2);
   config_server_.setCallback(f);
 }
 
 void AutomodelLineDetector::updateParameters(
-    automodel_line_detector::line_detectorConfig &config, uint32_t level) {
+    automodel_line_detector::LineDetectorConfig &config, uint32_t level) {
   // Update your internal parameters
   canny_percentage_horizon_ = config.canny_perBlindHorizon;
   canny_low_thresh_ = config.canny_lowThreshold;

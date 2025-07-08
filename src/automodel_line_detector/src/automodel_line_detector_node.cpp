@@ -11,7 +11,7 @@
 using namespace automodel::line_detector;
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "automodel/line_detector");
+  ros::init(argc, argv, "automodel_line_detector_node");
 
   // node handler
   ros::NodeHandle n("~");

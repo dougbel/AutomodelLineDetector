@@ -23,7 +23,7 @@ find_package( OpenCV REQUIRED )
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
 generate_dynamic_reconfigure_options(
-  cfg/line_detector.cfg
+  cfg/LineDetector.cfg
 )
 
 ###################################

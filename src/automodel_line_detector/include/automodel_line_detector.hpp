@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <automodel_line_detector/line_detectorConfig.h>  // auto-generated
+#include <automodel_line_detector/LineDetectorConfig.h>  // auto-generated
 #include <dynamic_reconfigure/server.h>
 #include <image_transport/image_transport.h>
 #include <ros/ros.h>
@@ -62,9 +62,9 @@ class AutomodelLineDetector {
   image_transport::Publisher publisher_lines_image_;
   image_transport::Publisher publisher_edges_image_;
 
-  void updateParameters(automodel_line_detector::line_detectorConfig &config,
+  void updateParameters(automodel_line_detector::LineDetectorConfig &config,
                         uint32_t level);
-  dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig>
+  dynamic_reconfigure::Server<automodel_line_detector::LineDetectorConfig>
       config_server_;
 };
 
