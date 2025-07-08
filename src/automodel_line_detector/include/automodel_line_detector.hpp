@@ -1,81 +1,72 @@
 // automodel_line_detector.cpp
-// Header of the AutomodelLineDetector class for line detection using OpenCV and ROS.
+// Header of the AutomodelLineDetector class for line detection using OpenCV and
+// ROS.
 //
 // Created on: Mar 16, 2018
 // Author: Abel Pacheco Ortega
 
 #pragma once
 
-#include "cv_bridge/cv_bridge.h"
-#include "std_msgs/Float32MultiArray.h"
-#include <opencv2/opencv.hpp>
-#include "opencv2/imgproc.hpp"
-#include <boost/circular_buffer.hpp>
-#include <image_transport/image_transport.h>
-#include <ros/package.h>
-
+#include <automodel_line_detector/line_detectorConfig.h>  // auto-generated
 #include <dynamic_reconfigure/server.h>
-#include <automodel_line_detector/line_detectorConfig.h> // auto-generated
+#include <image_transport/image_transport.h>
+#include <ros/ros.h>
 
-namespace automodel::line_detector
-{
+#include <boost/circular_buffer.hpp>
+#include <opencv2/core.hpp>
 
-	const std::string IN_NAMED_WINDOW = "Input";
-	const std::string OUT_NAMED_WINDOW = "Output";
-	const std::string OUT2_NAMED_WINDOW = "Output prev";
+namespace automodel {
+namespace line_detector {
 
-	class AutomodelLineDetector
-	{
-	public:
-		AutomodelLineDetector(ros::NodeHandle &nodeHandle);
-		virtual ~AutomodelLineDetector();
+class AutomodelLineDetector {
+ public:
+  AutomodelLineDetector(ros::NodeHandle &nodeHandle);
+  virtual ~AutomodelLineDetector();
 
-		void detect(const sensor_msgs::ImageConstPtr &);
+  void detect(const sensor_msgs::ImageConstPtr &);
 
-		cv::Mat preprocess_image(const cv::Mat &img_mono);
-		void detect_lines(const cv::Mat &edges);
-		void publishLines();
+ private:
+  cv::Mat preprocessImage(const cv::Mat &img_mono);
+  void detectLines(const cv::Mat &edges);
+  void publishDetectedLines();
+  void publishImageDetectedLines(const cv::Mat &image);
+  void publishImageDetectedEdges(const cv::Mat &image);
+  void readParameters();
+  void saveParameters();
 
-		// void createGUI();
-		void publish_img_lines(cv::Mat &image);
-		void publish_img_edges(const cv::Mat &image);
-		void read_parameters();
+  ros::NodeHandle nh_;
+  std::string image_topic_;
+  image_transport::Subscriber subscriber_;
 
-	private:
-		void saveParameters();
+  // Para Cannny
+  int canny_low_thresh_;
+  int canny_high_thresh_;
+  int canny_percentage_horizon_;
 
-		ros::NodeHandle nh_;
-		std::string image_topic;
-		image_transport::Subscriber sub_;
+  // Para Hough
+  double rho_;
+  double theta_;
+  int hough_int_rho_;
+  int hough_int_theta_;
+  int hough_threshold_;
+  int line_circular_buffer_size_;
 
-		// Para Cannny
-		int canny_low_thresh_;
-		int canny_high_thresh_;
-		int canny_percentage_horizon;
+  boost::circular_buffer<cv::Vec2f> cb_lines_left_;
+  boost::circular_buffer<cv::Vec2f> cb_lines_right_;
+  std::optional<cv::Vec2f> computeAverageLine(
+      const boost::circular_buffer<cv::Vec2f> &cbLines) const;
 
-		// Para Hough
-		double rho_;
-		double theta_;
-		int hough_int_rho_;
-		int hough_int_theta_;
-		int hough_threshold_;
-		int line_circular_buffer_size_;
+  ros::Publisher publisher_left_line_;
+  ros::Publisher publisher_right_line_;
 
-		cv::Mat mask_yw_image_;
-		cv::Mat imageColor_;
+  image_transport::Publisher publisher_lines_image_;
+  image_transport::Publisher publisher_edges_image_;
 
-		boost::circular_buffer<cv::Vec2f> cb_lines_left_;
-		boost::circular_buffer<cv::Vec2f> cb_lines_right_;
-		std::optional<cv::Vec2f> compute_average_line(const boost::circular_buffer<cv::Vec2f> &cb_lines) const;
+  void updateParameters(automodel_line_detector::line_detectorConfig &config,
+                        uint32_t level);
+  dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig>
+      config_server_;
+};
 
-		ros::Publisher pub_line_left_;
-		ros::Publisher pub_line_right_;
-
-		image_transport::Publisher pub_img_lines_;
-		image_transport::Publisher pub_img_edges_;
-
-		void set_parameters(automodel_line_detector::line_detectorConfig &config, uint32_t level);
-		dynamic_reconfigure::Server<automodel_line_detector::line_detectorConfig> config_server_;
-	};
-
-}
+}  // namespace line_detector
+}  // namespace automodel
