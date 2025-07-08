@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(automodel_line_detector)
+project(lines_detector)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,7 +23,7 @@ find_package( OpenCV REQUIRED )
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
 generate_dynamic_reconfigure_options(
-  cfg/LineDetector.cfg
+  cfg/LinesDetector.cfg
 )
 
 ###################################
@@ -32,7 +32,7 @@ generate_dynamic_reconfigure_options(
 ## The catkin_package macro generates cmake config files for your package
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES automodel_line_detector
+#  LIBRARIES lines_detector
    CATKIN_DEPENDS roscpp std_msgs message_runtime cv_bridge sensor_msgs
    DEPENDS dynamic_reconfigure
 )
@@ -52,8 +52,8 @@ include_directories(
 ## Declare a C++ executable
 add_executable(
 	${PROJECT_NAME}_node 
-	src/automodel_line_detector_node.cpp
-	src/automodel_line_detector.cpp
+	src/lines_detector_node.cpp
+	src/lines_detector.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})

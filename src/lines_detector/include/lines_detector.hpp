@@ -1,4 +1,4 @@
-// automodel_line_detector.cpp
+// lines_detector.cpp
 // Header of the AutomodelLineDetector class for line detection using OpenCV and
 // ROS.
 //
@@ -7,21 +7,21 @@
 
 #pragma once
 
-#include <automodel_line_detector/LineDetectorConfig.h>  // auto-generated
 #include <dynamic_reconfigure/server.h>
 #include <image_transport/image_transport.h>
+#include <lines_detector/LinesDetectorConfig.h>  // auto-generated
 #include <ros/ros.h>
 
 #include <boost/circular_buffer.hpp>
 #include <opencv2/core.hpp>
 
 namespace automodel {
-namespace line_detector {
+namespace lines_detector {
 
-class AutomodelLineDetector {
+class AutomodelLinesDetector {
  public:
-  AutomodelLineDetector(ros::NodeHandle &nodeHandle);
-  virtual ~AutomodelLineDetector();
+  AutomodelLinesDetector(ros::NodeHandle &nodeHandle);
+  virtual ~AutomodelLinesDetector();
 
   void detect(const sensor_msgs::ImageConstPtr &);
 
@@ -62,11 +62,9 @@ class AutomodelLineDetector {
   image_transport::Publisher publisher_lines_image_;
   image_transport::Publisher publisher_edges_image_;
 
-  void updateParameters(automodel_line_detector::LineDetectorConfig &config,
-                        uint32_t level);
-  dynamic_reconfigure::Server<automodel_line_detector::LineDetectorConfig>
-      config_server_;
+  void updateParameters(dynamic::LinesDetectorConfig &config, uint32_t level);
+  dynamic_reconfigure::Server<dynamic::LinesDetectorConfig> config_server_;
 };
 
-}  // namespace line_detector
+}  // namespace lines_detector
 }  // namespace automodel

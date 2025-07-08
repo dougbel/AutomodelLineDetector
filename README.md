@@ -1,4 +1,4 @@
-# Automodel line detector
+# Automodel lines detector
 
 <img src="doc/view.png" width="800">
 
@@ -33,15 +33,15 @@ This repository provides of a ROS prototype line detector that outputs vital pos
       rosrun video_publisher video_publisher_node _video_path:=[VIDEO_FILE]
       ```
 
-2. **automodel_line_detector**
+2. **automodel/lines_detector**
 
    Having a point of view (POV) frame, determines de left and right lines that marks the limits of a lane.
    - Published topic:
-     - */automodel/line_detector/left*
+     - */automodel/lines_detector/left*
 
        The detected left line  *sensor_msgs::ImagePtr* message
 
-     - */automodel/line_detector/right*
+     - */automodel/lines_detector/right*
 
        The detected right line  *sensor_msgs::ImagePtr* message
 
@@ -49,25 +49,25 @@ This repository provides of a ROS prototype line detector that outputs vital pos
 
      The parameters intialization is set in the *config/config.yaml* file
 
-     - */automodel/line_detector/image_topic*
+     - */automodel/lines_detector/image_topic*
      
        Determines de topic that is providing with the sequence of frames to analyze
 
 
-     - */automodel/line_detector/canny_lowThreshold* and */automodel/line_detector/canny_highThreshold*
+     - */automodel/lines_detector/canny_lowThreshold* and */automodel/lines_detector/canny_highThreshold*
        
        Indicates the low and high thresholds used in the [canny edge detector](https://ieeexplore.ieee.org/abstract/document/4767851)
 
 
-     - */automodel/line_detector/canny_perBlindHorizon*
+     - */automodel/lines_detector/canny_perBlindHorizon*
        
         From the automodel point of view, not all image is useful to determine the lane lines. This parameter indicated the upper portion of the image that is not considerer for the analysis.
 
 
-     - */automodel/line_detector/hough_int_rho* and */automodel/line_detector/hough_int_theta*
+     - */automodel/lines_detector/hough_int_rho* and */automodel/lines_detector/hough_int_theta*
        A [Hough tranform for lines](https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html) is used on the edge detected to determine the line lanes. This parameter determines the "bins" resolution of the parameters *rho* and *theta* in pixels and degrees respectivelly.
 
-     - */automodel/line_detector/hough_threshold*
+     - */automodel/lines_detector/hough_threshold*
 
        The minimum number of votes in the bins (intersections) to "*detect*" a line with the [Hough tranform for lines](https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html)
 
@@ -115,14 +115,14 @@ docker run -it --rm \
 
 ### Usage
 
-You can download video example video sequence from [here](https://drive.google.com/file/d/18iifPMkTMPiv2NLFfrs0kn1szXALURQu/view?usp=sharing)
+Download video example video sequence from [here](https://drive.google.com/file/d/18iifPMkTMPiv2NLFfrs0kn1szXALURQu/view?usp=sharing) and save it in the *data* folder.
 
-execute inside the container with
+Execute inside the container with
 
 ```bash 
-rosrun video_publisher video_publisher_node _video_path:=[VIDEO_FILE]
+roslaunch lines_detector automodel_lines_detector.launch 
 ```
-the *debug* param is by default adjusted in true. This will showw you three windows where you can observe the output and change the parameter (Note: they are not saved for future execution, so adviced to write them down)
-
 
 ![Reconfiguration app](./doc/debug_window.png)
+
+the *debug* param in the launch file is by default adjusted in true. This will showw you three windows where you can observe the output and change the parameter (Note: they are not saved for future execution, so adviced to write them down)

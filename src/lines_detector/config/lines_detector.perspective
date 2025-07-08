@@ -156,7 +156,7 @@
                   "type": "repr"
                 },
                 "mouse_pub_topic": {
-                  "repr": "'/automodel_line_detector/img_edges_mouse_left'",
+                  "repr": "'/automodel/lines_detector/img_edges_mouse_left'",
                   "type": "repr"
                 },
                 "num_gridlines": {
@@ -180,7 +180,7 @@
                   "type": "repr"
                 },
                 "topic": {
-                  "repr": "'/automodel_line_detector/img_edges'",
+                  "repr": "'/automodel/lines_detector/img_edges'",
                   "type": "repr"
                 },
                 "zoom1": {
@@ -227,7 +227,7 @@
                   "type": "repr"
                 },
                 "mouse_pub_topic": {
-                  "repr": "'/automodel_line_detector/img_lines_mouse_left'",
+                  "repr": "'/automodel/lines_detector/img_lines_mouse_left'",
                   "type": "repr"
                 },
                 "num_gridlines": {
@@ -251,7 +251,7 @@
                   "type": "repr"
                 },
                 "topic": {
-                  "repr": "'/automodel_line_detector/img_lines'",
+                  "repr": "'/automodel/lines_detector/img_lines'",
                   "type": "repr"
                 },
                 "zoom1": {
@@ -291,11 +291,11 @@
                   "pretty-print": "       , d     "
                 },
                 "expanded_nodes": {
-                  "repr": "[]",
+                  "repr": "['/automodel']",
                   "type": "repr"
                 },
                 "selected_nodes": {
-                  "repr": "['/automodel_line_detector']",
+                  "repr": "['/automodel/lines_detector']",
                   "type": "repr"
                 },
                 "splitter": {
