@@ -210,19 +210,14 @@ void AutomodelLineDetector::publishImageDetectedEdges(const cv::Mat &image) {
 }
 
 void AutomodelLineDetector::readParameters() {
-  nh_.param("/automodel/line_detector/image_topic", image_topic_,
-            std::string("/app/camera/rgb/image_raw"));
-  nh_.param("/automodel/line_detector/canny_lowThreshold", canny_low_thresh_,
-            172);
-  nh_.param("/automodel/line_detector/canny_highThreshold", canny_high_thresh_,
-            179);
-  nh_.param("/automodel/line_detector/canny_perBlindHorizon",
-            canny_percentage_horizon_, 46);
-  nh_.param("/automodel/line_detector/hough_int_rho", hough_int_rho_, 1);
-  nh_.param("/automodel/line_detector/hough_int_theta", hough_int_theta_, 1);
-  nh_.param("/automodel/line_detector/hough_threshold", hough_threshold_, 45);
-  nh_.param("/automodel/line_detector/line_circular_buffer_size",
-            line_circular_buffer_size_, 10);
+  nh_.param("image_topic", image_topic_, std::string("/camera/rgb/image_raw"));
+  nh_.param("canny_lowThreshold", canny_low_thresh_, 172);
+  nh_.param("canny_highThreshold", canny_high_thresh_, 179);
+  nh_.param("canny_perBlindHorizon", canny_percentage_horizon_, 46);
+  nh_.param("hough_int_rho", hough_int_rho_, 1);
+  nh_.param("hough_int_theta", hough_int_theta_, 1);
+  nh_.param("hough_threshold", hough_threshold_, 45);
+  nh_.param("line_circular_buffer_size", line_circular_buffer_size_, 10);
 
   ROS_INFO_STREAM("Image topic: " << image_topic_);
   ROS_INFO_STREAM("Canny lowThreshold: " << canny_low_thresh_);
